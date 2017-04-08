@@ -16,10 +16,10 @@ truncated Gaussian distributions that approximate the marginal
 probability density of observing a flux, given a stoichiometric matrix
 and a measure of the intakes/uptakes. This is part of the work:
 
-"An analytic approximation of the feasible space of metabolic
-networks" - A. Braunstein, A. Muntoni, A. Pagnani - Nature
-Communications 8, Article number: 14915 (2017) -
-doi:10.1038/ncomms14915
+["An analytic approximation of the feasible space of metabolic
+networks"](http://www.nature.com/articles/ncomms14915) -
+A. Braunstein, A. Muntoni, A. Pagnani - Nature Communications 8,
+Article number: 14915 (2017) - doi:10.1038/ncomms14915
 
 There are two implementations: one in matlab, the second in
 [Julia](http://julialang.org).
@@ -59,30 +59,13 @@ Output
 Julia Version
 =============
 
-Input
-- S: stoichiometric matrix of "Nm metabolites" x "Nr reactions" (either sparse or dense)
-- b: vector of Nm intakes/uptakes
-- nuinf, nusup: lower and upper bounds for each metabolic flux
+Installing the package
 
-Optional Arguments
-- beta::Real: inverse variance of the noise [default = 1e-7]
-- verbose::Bool verbosity of output [default = true]
-- damp::Real damping coefficient (from 0 to 1) applied to the update of means "a" and variances "d" of approximating Gaussians Ex. "new a" = damp * "new a" + (1 - damp) * "old a"; [default = 0.9]
-- espsilonconv:  precision required to stop the algorithm [default 1e-6]
-- maxiter::Int: maximum number of iterations [default = 2000]
-- minvar::Real, maxvar::Real: lower and upper bounds for the variances "d" of the approximation. [default: 1e-50, 1e50]
+``julia> Pkg.clone("https://github.com/anna-pa-m/Metabolic-EP/","MetabolicEP.jl")``.
 
+Otherwise, if you do not want to use the package manager, from a local copy of  the directory ``src`` in this repository, you can
+``julia> include("dirtosource/src/MetabolicEP.jl"); using MetabolicEP``
 
-Output
-(μ,s, av, var) where:
-
-- μ: vector parametrizing the mean of the posterior distribution
-- s: vector parametrizing the variance of the posterior distribution
-- av: averages of the truncated Gaussians of the approximation
-- va: variances of the truncated Gaussians of the approximation
-
-Julia Version 
-=============
 It works with version 0.5, and 0.4 (with some warnings).
 
 Typical usage is
@@ -90,32 +73,34 @@ Typical usage is
 ``julia> res=metabolicEP(S,b,numin,numax)``
 
 The output in res is of type ``EPout`: there are several fields:
--   μ::Vector: A parameter linked to the mean of the posterior probability 
--   σ::Vector: A parameter linked to the std  of the posterior probability 
--   av::Vector: The mean posterior probability
--   va::Vector: The variance of the posterior probability
--   sol::EPFields: The internal field status. From this value we can
+-   ``μ::Vector``: A parameter linked to the mean of the posterior probability 
+-   ``σ::Vector``: A parameter linked to the std  of the posterior probability 
+-   ``av::Vector``: The mean posterior probability
+-   ``va::Vector``: The variance of the posterior probability
+-   ``sol::EPFields``: The internal field status. From this value we can
 restart the sampling from a specific state.
--   status::Symbol: either ``:converged`` or ``:unconverged``.
+-   ``status::Symbol``: either ``:converged`` or ``:unconverged``.
 
 
-Input (required) 
-- S: MxN matrix (either sparse or dense) please note that if you input a dense version, the algorithm is slighlty more efficient. Dense matrices can be create from sparse ones with ``full(S)``.
-- b: a vector of M intakes/uptakes 
-- nuinf: a vector of lengh N of upper bounds.
-- nusup: a vector of lengh N of lower bounds.
+Input (required)
+----
+- `S`: MxN matrix (either sparse or dense) please note that if you input a dense version, the algorithm is slighlty more efficient. Dense matrices can be create from sparse ones with ``full(S)``.
+- `b`: a vector of M intakes/uptakes 
+- `nuinf`: a vector of lengh N of upper bounds.
+- `nusup`: a vector of lengh N of lower bounds.
 
 
 Input (optional argument). 
-- beta (inverse temperature::``Real``): default 10^7 
-- verbose (``true`` or ``false``): default ``true``
-- damp (∈ (0,1) newfield = damp * oldfield + (1-damp)* newfield): default 0.9  
-- epsconv (convergence criterion): default 1e-6
-- maxiter (maximum number of iterations): default 200
-- maxvar  (threshold on maximum variance): default 1e50
-- minvar  (threshold on minimum variance): default 1e-50
-- solution (start from solution. Is of type ``EPout``): default: ``nothing``
-- expval (fix to posterior probability of mean and/or variance to
+----
+- `beta` (inverse temperature::``Real``): default 10^7 
+- `verbose` (``true`` or ``false``): default ``true``
+- `damp` (∈ (0,1) newfield = damp * oldfield + (1-damp)* newfield): default 0.9  
+- `epsconv` (convergence criterion): default 1e-6
+- `maxiter` (maximum number of iterations): default 200
+- `maxvar`  (threshold on maximum variance): default 1e50
+- `minvar`  (threshold on minimum variance): default 1e-50
+- `solution` (start from solution. Is of type ``EPout``): default: ``nothing``
+- `expval` (fix to posterior probability of mean and/or variance to
 values): default ``nothing``. expval can be either at
 ``Tuple{Float64,Float64,Int}`` or a
 ``Vector{Tuple{Float64,Float64,Int}}``. Values can be fixed as
@@ -128,12 +113,13 @@ and we keep the variance free.
 
 Reading matlab metabolic reconstruction (.mat files)
 ---
+
 There is a small convenience reader for metabolic reconstructions in
-matlab format (.mat). It can be invoker as:
+matlab format (.mat).  It can be invoked as:
 
 ``julia> met=ReadMatrix("nomefile.mat")``
 
-The output is of type ``MetNet`` whose relevant field are:
+The output `met` is of type ``MetNet`` whose fields are:
 - ``N::Int`` number of fluxes
 - ``M::Int`` number of metabolites
 - ``S::SparseMatrixCSC{Float64,Int}`` Stoichiometric matrix M x N sparse
