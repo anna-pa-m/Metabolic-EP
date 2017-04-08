@@ -1,4 +1,4 @@
-module Metabolic-EP
+module MetabolicEP
 
 export metabolicEP, ReadMatrix, MetNet, EPFields, EPout
 
