@@ -83,7 +83,7 @@ Output
 
 Julia Version 
 =============
-It should be compatible with version 0.5, and 0.4 (with some warnings).
+It works with version 0.5, and 0.4 (with some warnings).
 
 Typical usage is
 
@@ -131,8 +131,7 @@ Reading matlab metabolic reconstruction (.mat files)
 There is a small convenience reader for metabolic reconstructions in
 matlab format (.mat). It can be invoker as:
 
-```julia> met=ReadMatrix("nomefile.mat")
-```
+``julia> met=ReadMatrix("nomefile.mat")``
 
 The output is of type ``MetNet`` whose relevant field are:
 - ``N::Int`` number of fluxes
