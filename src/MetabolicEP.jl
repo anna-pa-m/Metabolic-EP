@@ -1,5 +1,5 @@
 module MetabolicEP
-
+using COBRA
 export metabolicEP, ReadMatrix, MetNet, EPFields, EPout
 
 include("ep.jl")
