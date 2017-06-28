@@ -313,3 +313,6 @@ function _parseexpval!{T<:Vector}(expval::T,siteflagave::BitArray{1},siteflagvar
 end
 
 _parseexpval!(nothing,siteflagave::BitArray{1},siteflagvar::BitArray{1})=(Dict{Int,Float64}(),Dict{Int,Float64}())
+
+
+metabolicEP(X::COBRA.LPproblem; args...) = metabolicEP(X.S, X.b, X.lb, X.ub; args...) # convinence for runnning directly on Lpproblems 
