@@ -105,3 +105,25 @@ function ReadMatrix(filename::String)
 end
 
 
+include("$(Pkg.dir("COBRA"))/config/solverCfg.jl")
+
+function reduceModel(X::COBRA.LPproblem; solverName::Symbol=:Gurobi,solParams=[],optPercentage::Float64=100.0)
+
+    solver = COBRA.changeCobraSolver(solverName, solParams)
+    minFlux, maxFlux, optSol, fbaSol, fvamin, fvamax = COBRA.distributedFBA(X, solver, nWorkers=1, optPercentage=optPercentage)    
+
+    return COBRA.LPproblem(X.S,X.b,X.c,minFlux,maxFlux,X.osense,X.csense,X.rxns,X.mets)
+
+end
+
+function reduceModel!(X::COBRA.LPproblem; solverName::Symbol=:Gurobi,solParams=[],optPercentage::Float64=100.0)
+
+    solver = COBRA.changeCobraSolver(solverName, solParams)
+    minFlux, maxFlux, optSol, fbaSol, fvamin, fvamax = COBRA.distributedFBA(X, solver, nWorkers=1, optPercentage=optPercentage)    
+
+    for i in eachindex(X.lb)
+        X.lb[i] = minFlux[i]
+        X.ub[i] = maxFlux[i]
+    end
+    return nothing
+end
