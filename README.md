@@ -110,6 +110,16 @@ and the variance to 0.4. Fixing more values ``expval=[(0.2, 0.3, 4),
 0.2 (mean) and 0.3 (variance), while for flux 5 we fix the mean to 0.4
 and we keep the variance free.
 
+[COBRA](https://github.com/opencobra/COBRA.jl) compatibility
+---
+
+We developed a COBRA compatibility so that now models can be loaded
+with the `COBRA.loadModel()`
+[utility](https://opencobra.github.io/COBRA.jl/stable/functions.html#loadModel)
+metabolicEP can be also run passing a `LPproblem`
+[type](https://opencobra.github.io/COBRA.jl/stable/functions.html#LPproblem)
+as returned by `loadModel`.
+
 
 Reading matlab metabolic reconstruction (.mat files)
 ---
@@ -123,11 +133,11 @@ The output `met` is of type ``MetNet`` whose fields are:
 - ``N::Int`` number of fluxes
 - ``M::Int`` number of metabolites
 - ``S::SparseMatrixCSC{Float64,Int}`` Stoichiometric matrix M x N sparse
-- ``b::Array{Float64,1}``  right hand side of equation  S ν = b 
-- ``c::Array{Float64,1}`` reaction index of biomass 
-- ``lb::Array{Float64,1}`` fluxes lower bound M elements vector
-- ``ub::Array{Float64,1}``  fluxes upper bound M elements vector 
-- ``genes::Array{String,1}``  gene names 
+- ``b::Array{Float64,1}``  right hand side of equation  S ν = b (vector of size M)
+- ``c::Array{Float64,1}`` reaction index of biomass (vector of size N)
+- ``lb::Array{Float64,1}`` fluxes lower bound N elements vector
+- ``ub::Array{Float64,1}``  fluxes upper bound N elements vector 
+- ``genes::Array{String,1}``  gene names N elements vector
 - ``rxnGeneMat::SparseMatrixCSC{Float64,Int}``  
 - ``grRules::Array{String,1}``  gene-reaction rule N elements vector of strings (and / or allowed)
 - ``mets::Array{String,1}``  metabolites short-name M elements 
