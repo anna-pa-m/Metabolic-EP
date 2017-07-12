@@ -98,7 +98,7 @@ function metabolicEP{T<:AbstractFloat}(K::AbstractArray{T,2}, Y::Array{T,1}, nui
     verbose && println("Analyzing a $M x $N stoichiometric matrix.")
     returnstatus = :unconverged
     expsite = -1
-    scalefact = max(maximum(abs(nuinf)), maximum(abs(nusup)))
+    scalefact = max(maximum(abs.(nuinf)), maximum(abs.(nusup)))
 
     siteflagave = trues(N)
     siteflagvar = trues(N)
