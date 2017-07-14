@@ -101,18 +101,59 @@ function reduceModel!(X::COBRA.LPproblem; solverName::Symbol=:Gurobi,solParams=[
     minFlux, maxFlux, optSol, fbaSol, fvamin, fvamax = COBRA.distributedFBA(X, solver, nWorkers=1, optPercentage=optPercentage)    
 
     for i in eachindex(X.lb)
-        X.lb[i] = minFlux[i]
-        X.ub[i] = maxFlux[i]
+        if minFlux[i] <= maxFlux[i]
+            X.lb[i] = minFlux[i]
+            X.ub[i] = maxFlux[i]
+        elseif abs(minFlux[i] - maxFlux[i]) < 1e10
+            X.lb[i] = 0.5 * (minFlux[i] + maxFlux[i])
+            X.ub[i] = X.lb[i]
+        else
+            error("lower bound lb[$i] = ",X.lb[i]," significantly larger then ub[$i] = ", X.ub[i])
+        end
+            
     end
     return nothing
 end
 
-function licols(X;tol::Float64=1e-10)
-    sumabs2(X) == 0 && (return(Array{Int,1}(),Array{Int,2}()))
+function idxlicols{T<:DenseArray}(X::T;tol::Float64=1e-10)
+    sum(abs2,X) == 0 && (return(Array{Int,1}(),Array{Int,2}()))
     Q,R,E = qr(X,Val{true})  
-    diagr = abs(diag(R))
+    diagr = abs.(diag(R))
     r = find(diagr .>= tol*diagr[1])[end]
     idx = sort(E[1:r])
-    Xsub= X[:,idx]
-    return Xsub, idx
+    return idx
+end
+
+
+function standardform(X::COBRA.LPproblem)
+
+    idxrow, idxcol, res = echelonize(full(X.S))
+
+    (length(idxrow),length(idxcol)) == size(res) || BoundsError()
+        
+    COBRA.LPproblem(sparse(res),X.b[idxrow],X.c[idxcol],X.lb[idxcol],X.ub[idxcol],X.osense, X.csense[idxrow], X.rxns[idxcol], X.mets[idxrow])
+    
+end
+
+
+function echelonize{T<:DenseArray}(X::T; eps::Real=1e-10)
+    M,N = size(X)
+
+    idxrow = idxlicols(X')
+    Mred = length(idxrow)
+    
+    idxind = idxlicols(X)
+    idxdep = setdiff(1:N,idxind)
+    newidx = vcat(idxind,idxdep)
+    Tv = @view X[idxrow,newidx] 
+    res =  inv(Tv[1:Mred,1:Mred]) * Tv
+    for i in eachindex(res)
+        abs(res[i]) < eps && (res[i] = zero(res[i]))
+    end
+
+    for i in 1:size(res,1)
+        abs(1.0 - res[i,i]) < eps  && (res[i,i] = one(res[i,i]))
+    end
+
+    idxrow,newidx,res
 end
