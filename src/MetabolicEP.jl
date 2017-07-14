@@ -1,10 +1,11 @@
 module MetabolicEP
-using COBRA
+using COBRA, MAT
 
-@static VERSION > v"0.6" && using SpecialFunctions
+VERSION > v"0.6" && using SpecialFunctions
 
 export metabolicEP, ReadMatrix, MetNet, EPFields, EPout
 
+include("types.jl")
 include("ep.jl")
 include("utils.jl")
 
