@@ -1,9 +1,8 @@
 immutable EPFields{T<:AbstractFloat}
     av::Vector{T}
-    var::Vector{T}
+    va::Vector{T}
     a::Vector{T}
     b::Vector{T}
-    D::Vector{T}
     μ::Vector{T}
     s::Vector{T}
     new_a::Vector{T}
@@ -12,19 +11,8 @@ immutable EPFields{T<:AbstractFloat}
     siteflagvar::BitArray{1}
 end
 
-
-type EPout{T<:AbstractFloat}
-    μ::Vector{T}
-    σ::Vector{T}
-    av::Vector{T}
-    va::Vector{T}
-    sol::EPFields{T}
-    status::Symbol
-end
-
-
 function EPFields(N::Int,expval,scalefact,T)
-
+    
     siteflagvar = trues(N)
     siteflagave = trues(N)
     
@@ -43,7 +31,6 @@ function EPFields(N::Int,expval,scalefact,T)
              var,
              zeros(T,N),
              ones(T,N),
-             ones(T,N),
              zeros(T,N),
              ones(T,N),
              zeros(T,N),
@@ -55,19 +42,65 @@ end
 
 function EPFields(N::Int,expval::Void,scalefact,T)    
 
-    EPFields(zeros(T,N),
+    return EPFields(zeros(T,N),
              zeros(T,N),
              zeros(T,N),
-             ones(T,N),
              ones(T,N),
              zeros(T,N),
              ones(T,N),
              zeros(T,N),
              zeros(T,N),
              trues(N),
-             trues(N))            
-    
+             trues(N))                
 end
+
+
+struct EPMat{T<:AbstractFloat}
+    KK::AbstractArray{T,2}
+    KKPD::AbstractArray{T,2}
+    invKKPD::Matrix{T}
+    D::Vector{T}
+    KY::Vector{T}
+    I::Vector{T}
+    v::Vector{T}
+    nuinf::Vector{T}
+    nusup::Vector{T}
+end
+
+
+
+function EPMat{T<:AbstractFloat}(K::AbstractArray{T}, Y::Vector{T}, nuinf::Vector{T}, nusup::Vector{T}, beta::T)
+    M,N = size(K)
+    KKPD = beta * K' * K
+    if beta != Inf
+        return EPMat(copy(KKPD), copy(KKPD), zeros(T,N,N), ones(T,N), beta * K' * Y, zeros(T,N), zeros(T,N),nuinf,nusup)
+    else
+        error("beta = $beta case not yet implemented")
+    end
+end
+
+
+mutable struct EPAlg{T<:AbstractFloat}
+    beta::T
+    minvar::T
+    maxvar::T
+    epsconv::T
+    damp::T
+    maxiter::Int
+    verbose::Bool
+end
+
+
+struct EPout{T<:AbstractFloat}
+    μ::Vector{T}
+    σ::Vector{T}
+    av::Vector{T}
+    va::Vector{T}
+    sol::EPFields{T}
+    status::Symbol
+end
+
+
 
 
 type MetNet
