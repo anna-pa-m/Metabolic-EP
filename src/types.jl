@@ -71,7 +71,7 @@ end
 
 function EPMat{T<:AbstractFloat}(K::AbstractArray{T}, Y::Vector{T}, nuinf::Vector{T}, nusup::Vector{T}, beta::T)
     M,N = size(K)
-    KKPD = beta * K' * K
+    KKPD = full(beta * K' * K)
     if beta != Inf
         return EPMat(copy(KKPD), copy(KKPD), zeros(T,N,N), ones(T,N), beta * K' * Y, zeros(T,N), zeros(T,N),nuinf,nusup)
     else

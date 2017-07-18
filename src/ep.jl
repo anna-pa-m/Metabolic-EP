@@ -32,9 +32,9 @@ function metabolicEP{T<:AbstractFloat}(K::AbstractArray{T,2}, Y::Array{T,1}, nui
     
     expsite = -1
     siteflagave = trues(N)
-    siteflagvar = trues(N)
-    
+    siteflagvar = trues(N)    
     scalefact = max(maximum(abs.(nuinf)), maximum(abs.(nusup)))
+
     scale!(nusup,1.0/scalefact)
     scale!(nuinf,1.0/scalefact)
     scale!(Y,1.0/scalefact)
