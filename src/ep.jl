@@ -3,7 +3,7 @@
 
 function inplaceinverse!(dest::AbstractArray,source::AbstractArray)
     dest = copy!(dest, source)
-    Base.LinAlg.inv!(cholfact!(dest))
+    Base.LinAlg.inv!(cholfact!(Hermitian(dest)))
 end
 
 # K * x == Y 
@@ -50,21 +50,21 @@ function metabolicEP{T<:AbstractFloat}(K::AbstractArray{T,2}, Y::Array{T,1}, nui
     
     epmat = EPMat(K,Y,nuinf, nusup, beta)
 
-    res = converge!(epfield,epmat,epalg)    
-    scaleepfield(epfield,scalefact)
+    returnstatus=converge!(epfield,epmat,epalg)    
+    scaleepfield!(epfield,scalefact)
     scale!(nusup,scalefact)
     scale!(nuinf,scalefact)
     scale!(Y,scalefact)
 
-    return res
+    return  EPout(epfield.μ,epfield.s, epfield.av, epfield.va, epfield, returnstatus)
 end
 
 function converge!(epfield,epmat,epalg)
-    
-    iter = 0
     maxiter = epalg.maxiter
     verbose = epalg.verbose
+
     returnstatus = :unconverged
+    iter = 0
     while iter < maxiter
         iter += 1
         updatemat!(epmat)        
@@ -75,11 +75,11 @@ function converge!(epfield,epmat,epalg)
             returnstatus = :converged
             break
         end
-    end   
-    return EPout(epfield.μ,epfield.s, epfield.av, epfield.va, epfield, returnstatus)
+    end
+    return returnstatus
 end
 
-function scaleepfield(X::EPFields,scalefact)
+function scaleepfield!(X::EPFields,scalefact)
     scale!(X.μ, scalefact)
     scale!(X.s, scalefact^2)
     scale!(X.av, scalefact)
