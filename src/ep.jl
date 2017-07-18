@@ -27,10 +27,7 @@ function metabolicEP{T<:AbstractFloat}(K::AbstractArray{T,2}, Y::Array{T,1}, nui
     M < N || warn("M = $M ≥ N = $N")
     sum(nusup .< nuinf) == 0 || error("lower bound fluxes > upper bound fluxes. Consider swapping lower and upper bounds")     
     verbose && println("Analyzing a $M x $N stoichiometric matrix.")
-
-
     
-    expsite = -1
     siteflagave = trues(N)
     siteflagvar = trues(N)    
     scalefact = max(maximum(abs.(nuinf)), maximum(abs.(nusup)))
@@ -51,6 +48,7 @@ function metabolicEP{T<:AbstractFloat}(K::AbstractArray{T,2}, Y::Array{T,1}, nui
     epmat = EPMat(K,Y,nuinf, nusup, beta)
 
     returnstatus=converge!(epfield,epmat,epalg)    
+
     scaleepfield!(epfield,scalefact)
     scale!(nusup,scalefact)
     scale!(nuinf,scalefact)
@@ -62,7 +60,8 @@ end
 function converge!(epfield,epmat,epalg)
     maxiter = epalg.maxiter
     verbose = epalg.verbose
-
+    epsconv = epalg.epsconv
+    
     returnstatus = :unconverged
     iter = 0
     while iter < maxiter
@@ -71,7 +70,7 @@ function converge!(epfield,epmat,epalg)
         (errav,errvar,errμ, errs) = oneepsweep!(epfield,epalg, epmat)
         verbose && @printf("it = %d beta = %g errav = %g errvar = %g errμ = %g errs = %g\n",
                            iter, epalg.beta, errav, errvar, errμ, errs)
-        if max(errav, errvar,errμ,errs) < epalg.epsconv 
+        if max(errav, errvar,errμ,errs) < epsconv
             returnstatus = :converged
             break
         end
