@@ -69,7 +69,7 @@ function EPMat{T<:AbstractFloat}(K::AbstractArray{T}, Y::Vector{T}, nuinf::Vecto
     if beta != Inf
         return EPMat(copy(KKPD), copy(KKPD), zeros(T,N,N), ones(T,N), beta * K' * Y, zeros(T,N), zeros(T,N),nuinf,nusup)
     else
-        error("beta = $beta case not yet implemented")
+        error("I really should not be here")
     end
 end
 

@@ -23,11 +23,27 @@ function metabolicEP{T<:AbstractFloat}(K::AbstractArray{T,2}, Y::Array{T,1}, nui
                                        solution::Union{EPout{T},Void}=nothing,  # start from a solution
                                        expval=nothing)      # fix posterior probability experimental values for std and mean
    
+
+    M,N,updatefunction,scalefact,epfield = prepareinput(K,Y,nuinf,nusup,beta,verbose,solution,expval,T)
+        
+    epalg = EPAlg(beta, minvar, maxvar, epsconv, damp, maxiter,verbose)    
+    epmat = EPMat(K,Y,nuinf, nusup, beta)
+
+    returnstatus=epconverge!(epfield,epmat,epalg, eponesweep!)    
+
+    scaleepfield!(epfield,nusup,nuinf,Y,scalefact)
+
+    return  EPout(epfield.μ,epfield.s, epfield.av, epfield.va, epfield, returnstatus)
+end
+
+
+function prepareinput(K,Y,nuinf,nusup,beta,verbose,solution,expval,T)
+
     M,N = size(K) 
     M < N || warn("M = $M ≥ N = $N")
     sum(nusup .< nuinf) == 0 || error("lower bound fluxes > upper bound fluxes. Consider swapping lower and upper bounds")     
-    verbose && println("Analyzing a $M x $N stoichiometric matrix.")
 
+    verbose && println("Analyzing a $M x $N stoichiometric matrix.")
     
     updatefunction = if beta == Inf
         if isstandardform(K)
@@ -39,33 +55,19 @@ function metabolicEP{T<:AbstractFloat}(K::AbstractArray{T,2}, Y::Array{T,1}, nui
         eponesweep!
     end
 
-    
-    siteflagave = trues(N)
-    siteflagvar = trues(N)    
     scalefact = max(maximum(abs.(nuinf)), maximum(abs.(nusup)))
-
-    scale!(nusup,1.0/scalefact)
-    scale!(nuinf,1.0/scalefact)
-    scale!(Y,1.0/scalefact)
-    
-    
     if solution === nothing
         epfield = EPFields(N,expval,scalefact,T)
     else
         epfield = solution.sol
     end
 
-    epalg = EPAlg(beta, minvar, maxvar, epsconv, damp, maxiter,verbose)    
-    epmat = EPMat(K,Y,nuinf, nusup, beta)
 
-    returnstatus=epconverge!(epfield,epmat,epalg, eponesweep!)    
-
-    scaleepfield!(epfield,scalefact)
-    scale!(nusup,scalefact)
-    scale!(nuinf,scalefact)
-    scale!(Y,scalefact)
-
-    return  EPout(epfield.μ,epfield.s, epfield.av, epfield.va, epfield, returnstatus)
+    scale!(nusup,1.0/scalefact)
+    scale!(nuinf,1.0/scalefact)
+    scale!(Y,1.0/scalefact)
+    
+    return M,N,updatefunction,scalefact,epfield
 end
 
 function epconverge!{T<:Function}(epfield::EPFields,epmat::EPMat,epalg::EPAlg, eponesweep!::T)
@@ -88,12 +90,18 @@ function epconverge!{T<:Function}(epfield::EPFields,epmat::EPMat,epalg::EPAlg, e
     return returnstatus
 end
 
-function scaleepfield!(X::EPFields,scalefact)
+function scaleepfield!(X,nuinf,nusup,Y,scalefact)
     @extract X : μ s av va
     scale!(μ, scalefact)
     scale!(s, scalefact^2)
     scale!(av, scalefact)
     scale!(va, scalefact^2)
+
+    scale!(nusup,scalefact)
+    scale!(nuinf,scalefact)
+    scale!(Y,scalefact)
+
+
 end
 
 function updatemat!(epmat)
