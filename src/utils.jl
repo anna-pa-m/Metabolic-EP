@@ -135,6 +135,10 @@ function standardform(X::COBRA.LPproblem)
     
 end
 
+isstandardform(X::COBRA.LPproblem) = isstandardform(X.S)
+isstandardform(S::SparseMatrixCSC) = S[1:size(S,1),1:size(S,1)] == speye(size(S,1))
+isstandardform(S::DenseMatrix) = S[1:size(S,1),1:size(S,1)] == eye(size(S,1)) 
+
 
 function echelonize{T<:DenseArray}(X::T; eps::Real=1e-10)
     M,N = size(X)

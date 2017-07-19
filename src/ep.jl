@@ -27,6 +27,18 @@ function metabolicEP{T<:AbstractFloat}(K::AbstractArray{T,2}, Y::Array{T,1}, nui
     M < N || warn("M = $M ≥ N = $N")
     sum(nusup .< nuinf) == 0 || error("lower bound fluxes > upper bound fluxes. Consider swapping lower and upper bounds")     
     verbose && println("Analyzing a $M x $N stoichiometric matrix.")
+
+    
+    updatefunction = if beta == Inf
+        if isstandardform(K)
+            eponesweepT0!
+        else
+            error("for T = 0 algorithm, S should be [I | M] whre I is diagonal")
+        end
+    else
+        eponesweep!
+    end
+
     
     siteflagave = trues(N)
     siteflagvar = trues(N)    
@@ -43,11 +55,10 @@ function metabolicEP{T<:AbstractFloat}(K::AbstractArray{T,2}, Y::Array{T,1}, nui
         epfield = solution.sol
     end
 
-    epalg = EPAlg(beta, minvar, maxvar, epsconv, damp, maxiter,verbose)            
-    
+    epalg = EPAlg(beta, minvar, maxvar, epsconv, damp, maxiter,verbose)    
     epmat = EPMat(K,Y,nuinf, nusup, beta)
 
-    returnstatus=converge!(epfield,epmat,epalg)    
+    returnstatus=epconverge!(epfield,epmat,epalg, eponesweep!)    
 
     scaleepfield!(epfield,scalefact)
     scale!(nusup,scalefact)
@@ -57,17 +68,16 @@ function metabolicEP{T<:AbstractFloat}(K::AbstractArray{T,2}, Y::Array{T,1}, nui
     return  EPout(epfield.μ,epfield.s, epfield.av, epfield.va, epfield, returnstatus)
 end
 
-function converge!(epfield,epmat,epalg)
-    maxiter = epalg.maxiter
-    verbose = epalg.verbose
-    epsconv = epalg.epsconv
+function epconverge!{T<:Function}(epfield::EPFields,epmat::EPMat,epalg::EPAlg, eponesweep!::T)
+
+    @extract epalg : maxiter verbose epsconv
     
     returnstatus = :unconverged
     iter = 0
     while iter < maxiter
         iter += 1
         updatemat!(epmat)        
-        (errav,errvar,errμ, errs) = oneepsweep!(epfield,epalg, epmat)
+        (errav,errvar,errμ, errs) = eponesweep!(epfield,epalg, epmat)
         verbose && @printf("it = %d beta = %g errav = %g errvar = %g errμ = %g errs = %g\n",
                            iter, epalg.beta, errav, errvar, errμ, errs)
         if max(errav, errvar,errμ,errs) < epsconv
@@ -79,63 +89,49 @@ function converge!(epfield,epmat,epalg)
 end
 
 function scaleepfield!(X::EPFields,scalefact)
-    scale!(X.μ, scalefact)
-    scale!(X.s, scalefact^2)
-    scale!(X.av, scalefact)
-    scale!(X.va, scalefact^2)
+    @extract X : μ s av va
+    scale!(μ, scalefact)
+    scale!(s, scalefact^2)
+    scale!(av, scalefact)
+    scale!(va, scalefact^2)
 end
 
 function updatemat!(epmat)
-
-    invKKPD = epmat.invKKPD
-    KKPD = epmat.KKPD
-    KK = epmat.KK
-    D = epmat.D
-    I = epmat.I
-
-    
+    @extract epmat : invKKPD KKPD KK D I
+        
     for i in eachindex(D)
         KKPD[i,i] = KK[i,i] + D[i]
-    end    
-
+    end
+    
     inplaceinverse!(invKKPD,KKPD)
 
     for i in eachindex(D)
         I[i] = invKKPD[i,i]
     end
-    
+   
     nothing
 end
 
-function oneepsweep!(X::EPFields, epalg::EPAlg, epmat::EPMat)
 
-    av = X.av
-    va = X.va
-    a = X.a
-    b = X.b
-    μ = X.μ
-    s = X.s
-    new_a = X.new_a
-    new_b = X.new_b
-    siteflagave = X.siteflagave
-    siteflagvar = X.siteflagvar
 
-        
-    beta = epalg.beta
-    minvar = epalg.minvar
-    maxvar = epalg.maxvar
-    epsconv = epalg.epsconv
-    damp = epalg.damp
+function eponesweepT0!(X::EPFields, epalg::EPAlg, epmat::EPMat)
+    @extract X : av va a b μ s  siteflagave siteflagvar
+    @extract epalg : beta minvar maxvar epsconv damp
+    @extract epmat : KK KKPD invKKPD nuinf nusup D KY I v
+
     
-    KK = epmat.KK
-    KKPD = epmat.KKPD
-    invKKPD = epmat.invKKPD
-    nuinf = epmat.nuinf
-    nusup = epmat.nusup
-    D = epmat.D
-    KY = epmat.KY
-    I = epmat.I
-    v = epmat.v
+
+
+
+
+
+end
+
+
+function eponesweep!(X::EPFields, epalg::EPAlg, epmat::EPMat)
+    @extract X : av va a b μ s  siteflagave siteflagvar
+    @extract epalg : beta minvar maxvar epsconv damp
+    @extract epmat : KK KKPD invKKPD nuinf nusup D KY I v
 
     T = eltype(v)
     
@@ -188,10 +184,10 @@ function oneepsweep!(X::EPFields, epalg::EPAlg, epmat::EPMat)
         isnan(avnew) || isnan(varnew) && println("avnew = $avnew varnew = $varnew")
         isnan(a[i]) || isnan(b[i])  && println("a[$i] = ", a[i]," b[$i] = ",b[i])
             
-        new_b[i] = min(maxvar, max(minvar, 1./(1./va[i] - 1./s[i])))
-        new_a[i] = av[i] + new_b[i]*(av[i] - μ[i])/s[i]
-        a[i] = damp*a[i]  + (1.0 - damp)*new_a[i]
-        b[i] = damp*b[i]  + (1.0 - damp)*new_b[i]            
+        new_b = min(maxvar, max(minvar, 1./(1./va[i] - 1./s[i])))
+        new_a = av[i] + new_b*(av[i] - μ[i])/s[i]
+        a[i] = damp*a[i]  + (1.0 - damp)*new_a
+        b[i] = damp*b[i]  + (1.0 - damp)*new_b            
     end
     
     for i in eachindex(D)

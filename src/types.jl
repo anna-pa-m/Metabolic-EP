@@ -5,8 +5,6 @@ immutable EPFields{T<:AbstractFloat}
     b::Vector{T}
     μ::Vector{T}
     s::Vector{T}
-    new_a::Vector{T}
-    new_b::Vector{T}
     siteflagave::BitArray{1}
     siteflagvar::BitArray{1}
 end
@@ -33,8 +31,6 @@ function EPFields(N::Int,expval,scalefact,T)
              ones(T,N),
              zeros(T,N),
              ones(T,N),
-             zeros(T,N),
-             zeros(T,N),
              siteflagave,
              siteflagvar)
 end
@@ -48,8 +44,6 @@ function EPFields(N::Int,expval::Void,scalefact,T)
              ones(T,N),
              zeros(T,N),
              ones(T,N),
-             zeros(T,N),
-             zeros(T,N),
              trues(N),
              trues(N))                
 end
