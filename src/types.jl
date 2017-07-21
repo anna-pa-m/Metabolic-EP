@@ -56,7 +56,6 @@ struct EPMat{T<:AbstractFloat} <: AbstractEPMat
     invKKPD::Matrix{T}
     D::Vector{T}
     KY::Vector{T}
-    I::Vector{T}
     v::Vector{T}
     nuinf::Vector{T}
     nusup::Vector{T}
@@ -66,7 +65,7 @@ function EPMat{T<:AbstractFloat}(K::AbstractArray{T}, Y::Vector{T}, nuinf::Vecto
     M,N = size(K)
     KKPD = full(beta * K' * K)
     if beta != Inf
-        return EPMat(copy(KKPD), copy(KKPD), zeros(T,N,N), ones(T,N), beta * K' * Y, zeros(T,N), zeros(T,N),nuinf,nusup)
+        return EPMat(copy(KKPD), copy(KKPD), zeros(T,N,N), ones(T,N), beta * K' * Y, zeros(T,N),nuinf,nusup)
     else
         error("I really should not be here")
     end
@@ -76,27 +75,20 @@ end
 struct EPMatT0{T<:AbstractFloat} <: AbstractEPMat
     Dy::Vector{T}
     Dw::Vector{T}
-    Σy::AbstractArray{T,2}
-    Σw::AbstractArray{T,2}
-    G::AbstractArray{T,2}
+    Σy::Matrix{T}
+    Σw::Matrix{T}
+    G::Matrix{T}
     vy::Vector{T}
     vw::Vector{T}    
     nuinf::Vector{T}
     nusup::Vector{T}
 end
 
-function EPMatT0{T<:AbstractFloat}(K::AbstractArray{T}, Y::Vector{T}, nuinf::Vector{T}, nusup::Vector{T}, beta::T)
+function EPMatT0{T<:AbstractFloat}(K::AbstractArray{T,2}, Y::Vector{T}, nuinf::Vector{T}, nusup::Vector{T})
     M,N = size(K)
-    if beta == Inf        
-        return EPMatT0(ones(1,M), ones(N-M),copy(KKPD), zeros(T,N,N), ones(T,N), beta * K' * Y, zeros(T,N), zeros(T,N),nuinf,nusup)
-    else
-        error("I really should not be here")
-    end
+    M <= N || error("M=$M cannot be larger than N=$N")
+    return EPMatT0(ones(T,M), ones(T,N-M), zeros(T,M,M), zeros(T,N-M,N-M), copy(full(K[1:M,M+1:N])), zeros(T,M), zeros(T,N-M), nuinf,nusup)
 end
-
-    
-
-
 
 mutable struct EPAlg{T<:AbstractFloat}
     beta::T
@@ -108,7 +100,6 @@ mutable struct EPAlg{T<:AbstractFloat}
     verbose::Bool
 end
 
-
 struct EPout{T<:AbstractFloat}
     μ::Vector{T}
     σ::Vector{T}
@@ -117,9 +108,6 @@ struct EPout{T<:AbstractFloat}
     sol::EPFields{T}
     status::Symbol
 end
-
-
-
 
 type MetNet
     N::Int # number of fluxes
