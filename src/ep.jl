@@ -122,17 +122,112 @@ end
 
 
 
-function eponesweepT0!(X::EPFields, epalg::EPAlg, epmat::EPMat)
-    @extract X : av va a b μ s  siteflagave siteflagvar
+function eponesweepT0!(X::EPFields, epalg::EPAlg, epmatT0::EPMat)
+    @extract X : av va a b μ s siteflagave siteflagvar
     @extract epalg : beta minvar maxvar epsconv damp
-    @extract epmat : KK KKPD invKKPD nuinf nusup D KY I v
+    @extract epmatT0 : Dy Dw Σy Σw G vy vw I nuinf nusup  
 
+    idxy = 1:M
+    idxw = M+1:N
+
+    ay = @view a[idxy]
+    aw = @view a[idxw]
+    by = @view b[idxy]
+    bw = @view b[idxw]
+    sy = @view s[idxy]
+    sw = @view s[idxw]
+    μy = @view μ[idxy]
+    μw = @view μ[idxw]
+    avy= @view av[idxy]
+    avw= @view av[idxw]
+    vay= @view va[idxy]
+    vaw= @view va[idxw]
     
+    T = eltype(v)    
 
+    errav = typemin(T)
+    errvar = typemin(T)
+    errμ  = typemin(T)
+    errs  = typemin(T)
 
+    fast_similarity_inv!(Σw,Dw,Dy,G)
+    A_mul_B!(Σy,G*Σw,G')
+    A_mul_B!(vw,Σw,a[M+1:N]./Dw + G'*(a[1:M] ./ Dy))
+    A_mul_B!(vy,G,vw)    
 
+    for i in eachindex(μw)  # loop M+1:N        
+        newμw,newsw = newμs(Σw[i,i],aw[i],bw[i],vw[i],nuinf[i+M],nusup[i+M])
+        errμ = max(errμ, abs(μw[i]-newμw))
+        errs = max(errs, abs(sw[i]-newsw))
+        μw[i] = newμw
+        sw[i] = newsw
+        
 
+        newavw,newvaw = newav(sw[i],μw[i],avw[i],vaw[i],siteflagave[i+M],siteflagvar[i+M],nuinf[i+M],nusup[i+M])
+        errav = max(errav,abs(avw[i]-newavw))
+        errva = max(arrva,abs(vaw[i]-newvaw))
+        avw[i] = newavw
+        vaw[i] = newvaw 
 
+        newaw,newbw = matchmom(μw[i],sw[i],avw[i],vaw[i])
+        aw[i] = damp * aw[i] + (1.0-damp)*newaw
+        bw[i] = damp * bw[i] + (1.0-damp)*newbw
+    end
+
+end    
+
+function matchmom(μ,s,av,va)
+    newb = min(maxvar, max(minvar, 1.0/(1.0/va - 1.0/s)))
+    newa = av + newb*(av-μ)/s
+    isnan(newa) || isnan(newb) && warn("a = $newa b = $newb")
+    return newa, newb
+end
+
+function newav(s,μ,av,va,siteflagave,siteflagvar,nuinf,nusup)
+    sqrts = sqrt(s)
+    xinf = (nuinf - μ) / sqrts
+    xsup = (nusup - μ) / sqrts
+    scra1,scra12 = compute_mom5d(xinf,xsup)
+    if siteflagave
+        avnew = μ + scra1 * sqrts
+    else
+        avnew = av
+    end
+    avnew  = siteflagave ? μ + scra1*sqrts : av 
+    varnew = siteflagvar ? max(minvar,s*(1.0+scra12)) : va    
+    isnan(avnew) || isnan(varnew) && println("avnew = $avnew varnew = $varnew")
+    return avnew, varnew        
+end
+
+function newμs(Σ,a,b,v,nuinf,nusup)
+    I = Σ
+    I = min(Iw,bw)
+    s1 = max(minvar,1.0/Iw - 1.0/bw)
+    s = max(minvar,1.0/s1)
+    μ = if Iw != b
+        (v - a*I/b)(1.0-I/b)
+    else
+        warn("I'm here: nusup[$i] = ",nusup[i]," nuinf[$i] = ",nuinf[i], " I[$i] = ",I)
+        0.5 * (nusup-nuinf)
+    end
+
+    return μ,σ
+end
+
+let DDwXDy = Dict{Int,Matrix}()
+    global fast_similarity_inv!
+    function fast_similarity_inv!{T<:AbstractFloat}(dest,Dw::Vector{T},Dy::Vector{T},G)
+
+        NmM = length(Dw)        
+        DwXDy = Base.get!(DDwXDy,NmM,Array{T}(NmM,NmM))   
+        fill!(DwXDy,zero(T))
+        @inbounds for i in 1:length(Dw)
+            DwXDy[i,i] = 1.0 / Dw[i]
+        end
+        BLAS.syrk!('U','T',1.0,Diagonal((1./sqrt.(Dy)))*G,1.0,DwXDy)
+        inplaceinverse!(dest, DwXDy)        
+        return nothing
+    end
 end
 
 
@@ -160,7 +255,7 @@ function eponesweep!(X::EPFields, epalg::EPAlg, epmat::EPMat)
             newμ = (v[i]-a[i]*I[i]/b[i])/(1.0-I[i]/b[i])
             errμ = max(errμ,abs(μ[i]-newμ))
             isinf(errμ) && (println("μ[$i] = ", μ[i]," newμ = $newμ"); break) 
-            μ[i] = newμ
+            μ[i] = newμ            
         else
             warn("I'm here: nusup[$i] = ",nusup[i]," nuinf[$i] = ",nuinf[i], " I[$i] = ",I[i])
             newμ = 0.5 * (nusup[i] + nuinf[i])

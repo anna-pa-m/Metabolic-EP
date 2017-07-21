@@ -48,8 +48,9 @@ function EPFields(N::Int,expval::Void,scalefact,T)
              trues(N))                
 end
 
+abstract type AbstractEPMat end
 
-struct EPMat{T<:AbstractFloat}
+struct EPMat{T<:AbstractFloat} <: AbstractEPMat
     KK::AbstractArray{T,2}
     KKPD::AbstractArray{T,2}
     invKKPD::Matrix{T}
@@ -61,8 +62,6 @@ struct EPMat{T<:AbstractFloat}
     nusup::Vector{T}
 end
 
-
-
 function EPMat{T<:AbstractFloat}(K::AbstractArray{T}, Y::Vector{T}, nuinf::Vector{T}, nusup::Vector{T}, beta::T)
     M,N = size(K)
     KKPD = full(beta * K' * K)
@@ -72,6 +71,31 @@ function EPMat{T<:AbstractFloat}(K::AbstractArray{T}, Y::Vector{T}, nuinf::Vecto
         error("I really should not be here")
     end
 end
+
+
+struct EPMatT0{T<:AbstractFloat} <: AbstractEPMat
+    Dy::Vector{T}
+    Dw::Vector{T}
+    Σy::AbstractArray{T,2}
+    Σw::AbstractArray{T,2}
+    G::AbstractArray{T,2}
+    vy::Vector{T}
+    vw::Vector{T}    
+    nuinf::Vector{T}
+    nusup::Vector{T}
+end
+
+function EPMatT0{T<:AbstractFloat}(K::AbstractArray{T}, Y::Vector{T}, nuinf::Vector{T}, nusup::Vector{T}, beta::T)
+    M,N = size(K)
+    if beta == Inf        
+        return EPMatT0(ones(1,M), ones(N-M),copy(KKPD), zeros(T,N,N), ones(T,N), beta * K' * Y, zeros(T,N), zeros(T,N),nuinf,nusup)
+    else
+        error("I really should not be here")
+    end
+end
+
+    
+
 
 
 mutable struct EPAlg{T<:AbstractFloat}
