@@ -122,6 +122,8 @@ end
 
 
 
+
+
 function eponesweepT0!(X::EPFields, epalg::EPAlg, epmatT0::EPMat)
     @extract X : av va a b μ s siteflagave siteflagvar
     @extract epalg : beta minvar maxvar epsconv damp
@@ -165,7 +167,7 @@ function eponesweepT0!(X::EPFields, epalg::EPAlg, epmatT0::EPMat)
 
         newavw,newvaw = newav(sw[i],μw[i],avw[i],vaw[i],siteflagave[i+M],siteflagvar[i+M],nuinf[i+M],nusup[i+M])
         errav = max(errav,abs(avw[i]-newavw))
-        errva = max(arrva,abs(vaw[i]-newvaw))
+        errva = max(errva,abs(vaw[i]-newvaw))
         avw[i] = newavw
         vaw[i] = newvaw 
 
@@ -176,14 +178,14 @@ function eponesweepT0!(X::EPFields, epalg::EPAlg, epmatT0::EPMat)
 
 end    
 
-function matchmom(μ,s,av,va)
+function matchmom(μ,s,av,va, minvar,maxvar)
     newb = min(maxvar, max(minvar, 1.0/(1.0/va - 1.0/s)))
     newa = av + newb*(av-μ)/s
     isnan(newa) || isnan(newb) && warn("a = $newa b = $newb")
     return newa, newb
 end
 
-function newav(s,μ,av,va,siteflagave,siteflagvar,nuinf,nusup)
+function newav(s,μ,av,va,siteflagave,siteflagvar,nuinf,nusup, minvar, maxvar)
     sqrts = sqrt(s)
     xinf = (nuinf - μ) / sqrts
     xsup = (nusup - μ) / sqrts
@@ -199,19 +201,19 @@ function newav(s,μ,av,va,siteflagave,siteflagvar,nuinf,nusup)
     return avnew, varnew        
 end
 
-function newμs(Σ,a,b,v,nuinf,nusup)
+function newμs(Σ,a,b,v,nuinf,nusup,minvar,maxvar)
     I = Σ
-    I = min(Iw,bw)
-    s1 = max(minvar,1.0/Iw - 1.0/bw)
+    I = min(I,b)
+    s1 = max(minvar,1.0/I - 1.0/b)
     s = max(minvar,1.0/s1)
-    μ = if Iw != b
-        (v - a*I/b)(1.0-I/b)
+    μ = if I != b
+        (v - a*I/b)/(1.0-I/b)
     else
-        warn("I'm here: nusup[$i] = ",nusup[i]," nuinf[$i] = ",nuinf[i], " I[$i] = ",I)
+        warn("I'm here: nusup = ",nusup," nuinf= ",nuinf, " I = ",I)
         0.5 * (nusup-nuinf)
     end
 
-    return μ,σ
+    return μ,s
 end
 
 let DDwXDy = Dict{Int,Matrix}()
@@ -230,8 +232,7 @@ let DDwXDy = Dict{Int,Matrix}()
     end
 end
 
-
-function eponesweep!(X::EPFields, epalg::EPAlg, epmat::EPMat)
+function eponesweep!(X::EPFields,epalg::EPAlg, epmat::EPMat)
     @extract X : av va a b μ s  siteflagave siteflagvar
     @extract epalg : beta minvar maxvar epsconv damp
     @extract epmat : KK KKPD invKKPD nuinf nusup D KY I v
@@ -239,67 +240,32 @@ function eponesweep!(X::EPFields, epalg::EPAlg, epmat::EPMat)
     T = eltype(v)
     
     errav = typemin(T)
-    errvar = typemin(T)
+    errva = typemin(T)
     errμ  = typemin(T)
     errs  = typemin(T)
 
     A_mul_B!(v,invKKPD, (KY + D.*a))
     
     for i in eachindex(I)
-        I[i] = min(I[i],b[i])
-        s1   = max(minvar,1/I[i] - 1/b[i])
-        news = max(minvar,1/s1) 
-        errs = max(errs,abs(news-s[i])) 
+        newμ,news = newμs(invKKPD[i,i],a[i],b[i],v[i],nuinf[i],nusup[i],minvar, maxvar)
+        errμ = max(errμ, abs(μ[i]-newμ))
+        errs = max(errs, abs(s[i]-news))
+        μ[i] = newμ
         s[i] = news
-        if I[i] != b[i]
-            newμ = (v[i]-a[i]*I[i]/b[i])/(1.0-I[i]/b[i])
-            errμ = max(errμ,abs(μ[i]-newμ))
-            isinf(errμ) && (println("μ[$i] = ", μ[i]," newμ = $newμ"); break) 
-            μ[i] = newμ            
-        else
-            warn("I'm here: nusup[$i] = ",nusup[i]," nuinf[$i] = ",nuinf[i], " I[$i] = ",I[i])
-            newμ = 0.5 * (nusup[i] + nuinf[i])
-            errμ = max(errμ,abs(μ[i]-newμ))
-            μ[i] = newμ
-        end
-
-        sqrts  = sqrt(s[i])
-        xsup   = (nusup[i] - μ[i])/sqrts
-        xinf   = (nuinf[i] - μ[i])/sqrts
-
-        scra1,scra12 = compute_mom5d(xinf,xsup)
-        if siteflagave[i]
-            avnew = μ[i] + scra1 * sqrts
-            errav = max(errav, abs(av[i] - avnew))               
-        else
-            avnew = av[i]
-        end
-        if siteflagvar[i]
-            varnew = max(minvar, s[i] * (1.0 + scra12))                                        
-            errvar = max(errvar, abs(va[i]-varnew))
-        else
-            varnew = va[i]
-        end
-
-        av[i]  = avnew
-        va[i] = varnew            
         
-        isnan(avnew) || isnan(varnew) && println("avnew = $avnew varnew = $varnew")
-        isnan(a[i]) || isnan(b[i])  && println("a[$i] = ", a[i]," b[$i] = ",b[i])
-            
-        new_b = min(maxvar, max(minvar, 1./(1./va[i] - 1./s[i])))
-        new_a = av[i] + new_b*(av[i] - μ[i])/s[i]
-        a[i] = damp*a[i]  + (1.0 - damp)*new_a
-        b[i] = damp*b[i]  + (1.0 - damp)*new_b            
+        newave,newva = newav(s[i],μ[i],av[i],va[i],siteflagave[i],siteflagvar[i],nuinf[i],nusup[i],minvar,maxvar)
+        errav = max(errav,abs(av[i]-newave))
+        errva = max(errva,abs(va[i]-newva))
+        av[i] = newave
+        va[i] = newva
+        
+        newa,newb = matchmom(μ[i],s[i],av[i],va[i],minvar,maxvar)
+        a[i] = damp * a[i] + (1.0-damp)*newa
+        b[i] = damp * b[i] + (1.0-damp)*newb
+        D[i] = 1.0/b[i]
     end
-    
-    for i in eachindex(D)
-        D[i] = 1./b[i]
-    end
-    
-    return (errav,errvar,errμ,errs)
+    return errav,errva,errμ,errs
 end
-
 
 
 function compute_mom5d(xinf, xsup)
