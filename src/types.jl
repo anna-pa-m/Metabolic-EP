@@ -76,8 +76,6 @@ struct EPMatT0{T<:AbstractFloat} <: AbstractEPMat
     Σy::Matrix{T}
     Σw::Matrix{T}
     G::Matrix{T}
-    vy::Vector{T}
-    vw::Vector{T}    
     nuinf::Vector{T}
     nusup::Vector{T}
 end
@@ -85,7 +83,7 @@ end
 function EPMatT0{T<:AbstractFloat}(K::AbstractArray{T,2}, Y::Vector{T}, nuinf::Vector{T}, nusup::Vector{T})
     M,N = size(K)
     M <= N || error("M=$M cannot be larger than N=$N")
-    return EPMatT0(zeros(T,M,M), zeros(T,N-M,N-M), copy(full(K[1:M,M+1:N])), zeros(T,M), zeros(T,N-M), nuinf,nusup)
+    return EPMatT0(zeros(T,M,M), zeros(T,N-M,N-M), copy(full(K[1:M,M+1:N])), nuinf,nusup)
 end
 
 mutable struct EPAlg{T<:AbstractFloat}

@@ -105,9 +105,9 @@ end
 function eponesweepT0!(X::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
     @extract X : av va a b μ s siteflagave siteflagvar
     @extract epalg : beta minvar maxvar epsconv damp
-    @extract epmatT0 : Σy Σw G vy vw nuinf nusup  
+    @extract epmatT0 : Σy Σw G nuinf nusup  
     
-    M = length(vy)
+    M = size(G,1)
     N = length(av)
 
     idxy = 1:M
@@ -123,24 +123,24 @@ function eponesweepT0!(X::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
     minerr = typemin(av[1])
     errav,errva,errμ,errs = (minerr,minerr,minerr,minerr)
 
-
-
-#    println("M = $M N = $N size(Σw) = ", size(Σw)," size(Dw) = ", size(Dy), " size(G) = ", size(G))
-#    fast_similarity_inv!(Σw,Dw,Dy,G)
-
     Σw = inv(Diagonal(1.0 ./ bw) + G' * Diagonal( 1.0 ./ by ) * G)
+    for i in 1:N-M vaw[i] = Σw[i,i] end
+    
     A_mul_B!(Σy,G*Σw,G')
-    A_mul_B!(vw,Σw, aw ./ bw + G'*(ay ./ by))
-    A_mul_B!(vy,G,μw)    
+    for i in 1:M vay[i] = Σy[i,i] end
+    
+    A_mul_B!(avw,Σw, aw ./ bw + G'*(ay ./ by))
+    A_mul_B!(avy,G,μw)
 
     for i in eachindex(μw)  # loop M+1:N
-        newμw,newsw = newμs(Σw[i,i],aw[i],bw[i],vw[i],nuinf[i+M],nusup[i+M], minvar,maxvar)
+        newμw,newsw = newμs(vaw[i],aw[i],bw[i],avw[i],nuinf[i+M],nusup[i+M], minvar,maxvar)
         errμ = max(errμ, abs(μw[i]-newμw))
         errs = max(errs, abs(sw[i]-newsw))
         μw[i] = newμw
         sw[i] = newsw
         
-        newavw,newvaw = newav(sw[i],μw[i],avw[i],vaw[i],siteflagave[i+M],siteflagvar[i+M],nuinf[i+M],nusup[i+M],minvar,maxvar)
+        newavw,newvaw = newav(sw[i],μw[i],avw[i],vaw[i],siteflagave[i+M],siteflagvar[i+M],
+                              nuinf[i+M],nusup[i+M],minvar,maxvar)
         errav = max(errav,abs(avw[i]-newavw))
         errva = max(errva,abs(vaw[i]-newvaw))
         avw[i] = newavw
@@ -151,19 +151,20 @@ function eponesweepT0!(X::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
         bw[i] = damp * bw[i] + (1.0-damp)*newbw
     end
     
-    for i in eachindex(μy)   # loop 1:M
-        newμy,newsy = newμs(Σy[i,i],ay[i],by[i],vy[i],nuinf[i],nusup[i],minvar,maxvar)
+    for i in eachindex(μy)   # loop  1:M
+        newμy,newsy = newμs(vay[i],ay[i],by[i],avy[i],nuinf[i],nusup[i],minvar,maxvar)
         errμ = max(errμ, abs(μy[i]-newμy))
         errs = max(errs, abs(sy[i]-newsy))
         μy[i] = newμy
         sy[i] = newsy
 
-        newavy,newvay = newav(sy[i],μy[i],avy[i],vay[i],siteflagave[i],siteflagvar[i],nuinf[i],nusup[i],minvar,maxvar)
+        newavy,newvay = newav(sy[i],μy[i],avy[i],vay[i],siteflagave[i],siteflagvar[i],
+                              nuinf[i],nusup[i],minvar,maxvar)
         errav = max(errav,abs(avy[i]-newavy))
         errva = max(errva,abs(vay[i]-newvay))
         avy[i] = newavy
         vay[i] = newvay 
-
+        
         neway,newby = matchmom(μy[i],sy[i],avy[i],vay[i],minvar,maxvar)
         ay[i] = damp * ay[i] + (1.0-damp)*neway
         by[i] = damp * by[i] + (1.0-damp)*newby
@@ -219,8 +220,8 @@ function eponesweep!(X::EPFields,epalg::EPAlg, epmat::EPMat)
     @extract X : av va a b μ s siteflagave siteflagvar
     @extract epalg : beta minvar maxvar epsconv damp
     @extract epmat : KK KKPD invKKPD nuinf nusup D KY v
-
-    @extract epmat : invKKPD KKPD KK D        
+    @extract epmat : invKKPD KKPD KK D
+    
     for i in eachindex(D)
         KKPD[i,i] = KK[i,i] + D[i]
     end
