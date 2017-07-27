@@ -78,7 +78,6 @@ function epconverge!{T<:Function,M<:AbstractEPMat}(epfield::EPFields,epmat::M,ep
     iter = 0
     while iter < maxiter
         iter += 1
-        updatemat!(epmat)        
         (errav,errvar,errμ, errs) = eponesweep!(epfield,epalg, epmat)
         verbose && @printf("it = %d beta = %g errav = %g errvar = %g errμ = %g errs = %g\n",
                            iter, epalg.beta, errav, errvar, errμ, errs)
@@ -90,7 +89,7 @@ function epconverge!{T<:Function,M<:AbstractEPMat}(epfield::EPFields,epmat::M,ep
     return returnstatus
 end
 
-updatemat!(epmatT0::EPMatT0)=nothing # brrr! that should be fixed
+
 
 function scaleepfield!(X,nuinf,nusup,Y,scalefact)
     @extract X : μ s av va
@@ -98,26 +97,10 @@ function scaleepfield!(X,nuinf,nusup,Y,scalefact)
     scale!(s, scalefact^2)
     scale!(av, scalefact)
     scale!(va, scalefact^2)
-
     scale!(nusup,scalefact)
     scale!(nuinf,scalefact)
     scale!(Y,scalefact)
-
-
 end
-
-function updatemat!(epmat)
-    @extract epmat : invKKPD KKPD KK D        
-    for i in eachindex(D)
-        KKPD[i,i] = KK[i,i] + D[i]
-    end
-    inplaceinverse!(invKKPD,KKPD)
-    nothing
-end
-
-
-
-
 
 function eponesweepT0!(X::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
     @extract X : av va a b μ s siteflagave siteflagvar
@@ -184,8 +167,7 @@ function eponesweepT0!(X::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
         neway,newby = matchmom(μy[i],sy[i],avy[i],vay[i],minvar,maxvar)
         ay[i] = damp * ay[i] + (1.0-damp)*neway
         by[i] = damp * by[i] + (1.0-damp)*newby
-    end
-    
+    end    
     return errav,errav, errμ, errs
 end    
 
@@ -238,6 +220,12 @@ function eponesweep!(X::EPFields,epalg::EPAlg, epmat::EPMat)
     @extract epalg : beta minvar maxvar epsconv damp
     @extract epmat : KK KKPD invKKPD nuinf nusup D KY v
 
+    @extract epmat : invKKPD KKPD KK D        
+    for i in eachindex(D)
+        KKPD[i,i] = KK[i,i] + D[i]
+    end
+    inplaceinverse!(invKKPD,KKPD)
+    
     T = eltype(v)
     
     errav = typemin(T)
