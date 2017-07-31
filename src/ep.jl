@@ -102,8 +102,8 @@ function scaleepfield!(X,nuinf,nusup,Y,scalefact)
     scale!(Y,scalefact)
 end
 
-function eponesweepT0!(X::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
-    @extract X : av va a b μ s siteflagave siteflagvar
+function eponesweepT0!(epfields::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
+    @extract epfields : av va a b μ s siteflagave siteflagvar
     @extract epalg : beta minvar maxvar epsconv damp
     @extract epmatT0 : Σy Σw G nuinf nusup  
     
@@ -133,7 +133,7 @@ function eponesweepT0!(X::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
     A_mul_B!(avy,G,μw)
 
     for i in eachindex(μw)  # loop M+1:N
-        newμw,newsw = newμs(vaw[i],aw[i],bw[i],avw[i],nuinf[i+M],nusup[i+M], minvar,maxvar)
+        newμw,newsw = newμs(Σw[i,i],aw[i],bw[i],avw[i],nuinf[i+M],nusup[i+M], minvar,maxvar)
         errμ = max(errμ, abs(μw[i]-newμw))
         errs = max(errs, abs(sw[i]-newsw))
         μw[i] = newμw
@@ -152,7 +152,7 @@ function eponesweepT0!(X::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
     end
     
     for i in eachindex(μy)   # loop  1:M
-        newμy,newsy = newμs(vay[i],ay[i],by[i],avy[i],nuinf[i],nusup[i],minvar,maxvar)
+        newμy,newsy = newμs(Σy[i,i],ay[i],by[i],avy[i],nuinf[i],nusup[i],minvar,maxvar)
         errμ = max(errμ, abs(μy[i]-newμy))
         errs = max(errs, abs(sy[i]-newsy))
         μy[i] = newμy
