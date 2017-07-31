@@ -86,8 +86,7 @@ end
 
 
 function reduceModel(X::COBRA.LPproblem; solverName::Symbol=:Gurobi,solParams=[],optPercentage::Float64=100.0)
-    include("$(Pkg.dir("COBRA"))/config/solverCfg.jl")
-    
+
     solver = COBRA.changeCobraSolver(solverName, solParams)
     minFlux, maxFlux, optSol, fbaSol, fvamin, fvamax = COBRA.distributedFBA(X, solver, nWorkers=1, optPercentage=optPercentage)    
 

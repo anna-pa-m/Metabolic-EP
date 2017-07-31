@@ -54,7 +54,6 @@ struct EPMat{T<:AbstractFloat} <: AbstractEPMat
     KK::AbstractArray{T,2}
     KKPD::AbstractArray{T,2}
     invKKPD::Matrix{T}
-    D::Vector{T}
     KY::Vector{T}
     v::Vector{T}
     nuinf::Vector{T}
@@ -65,7 +64,7 @@ function EPMat{T<:AbstractFloat}(K::AbstractArray{T}, Y::Vector{T}, nuinf::Vecto
     M,N = size(K)
     KKPD = full(beta * K' * K)
     if beta != Inf
-        return EPMat(copy(KKPD), copy(KKPD), zeros(T,N,N), ones(T,N), beta * K' * Y, zeros(T,N),nuinf,nusup)
+        return EPMat(copy(KKPD), copy(KKPD), zeros(T,N,N), beta * K' * Y, zeros(T,N),nuinf,nusup)
     else
         error("I really should not be here")
     end
@@ -78,12 +77,14 @@ struct EPMatT0{T<:AbstractFloat} <: AbstractEPMat
     G::Matrix{T}
     nuinf::Vector{T}
     nusup::Vector{T}
+    vy::Vector{T}
+    vw::Vector{T}
 end
 
 function EPMatT0{T<:AbstractFloat}(K::AbstractArray{T,2}, Y::Vector{T}, nuinf::Vector{T}, nusup::Vector{T})
     M,N = size(K)
     M <= N || error("M=$M cannot be larger than N=$N")
-    return EPMatT0(zeros(T,M,M), zeros(T,N-M,N-M), copy(full(K[1:M,M+1:N])), nuinf,nusup)
+    return EPMatT0(zeros(T,M,M), zeros(T,N-M,N-M), copy(full(K[1:M,M+1:N])), nuinf,nusup,zeros(T,M),zeros(T,N-M))
 end
 
 mutable struct EPAlg{T<:AbstractFloat}
