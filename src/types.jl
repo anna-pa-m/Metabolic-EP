@@ -1,30 +1,16 @@
 immutable EPFields{T<:AbstractFloat}
     av::Vector{T}
-    var::Vector{T}
+    va::Vector{T}
     a::Vector{T}
     b::Vector{T}
-    D::Vector{T}
     μ::Vector{T}
     s::Vector{T}
-    new_a::Vector{T}
-    new_b::Vector{T}
     siteflagave::BitArray{1}
     siteflagvar::BitArray{1}
 end
 
-
-type EPout{T<:AbstractFloat}
-    μ::Vector{T}
-    σ::Vector{T}
-    av::Vector{T}
-    va::Vector{T}
-    sol::EPFields{T}
-    status::Symbol
-end
-
-
 function EPFields(N::Int,expval,scalefact,T)
-
+    
     siteflagvar = trues(N)
     siteflagave = trues(N)
     
@@ -43,11 +29,8 @@ function EPFields(N::Int,expval,scalefact,T)
              var,
              zeros(T,N),
              ones(T,N),
-             ones(T,N),
              zeros(T,N),
              ones(T,N),
-             zeros(T,N),
-             zeros(T,N),
              siteflagave,
              siteflagvar)
 end
@@ -55,20 +38,73 @@ end
 
 function EPFields(N::Int,expval::Void,scalefact,T)    
 
-    EPFields(zeros(T,N),
+    return EPFields(zeros(T,N),
              zeros(T,N),
              zeros(T,N),
              ones(T,N),
-             ones(T,N),
              zeros(T,N),
              ones(T,N),
-             zeros(T,N),
-             zeros(T,N),
              trues(N),
-             trues(N))            
-    
+             trues(N))                
 end
 
+abstract type AbstractEPMat end
+
+struct EPMat{T<:AbstractFloat} <: AbstractEPMat
+    KK::AbstractArray{T,2}
+    KKPD::AbstractArray{T,2}
+    invKKPD::Matrix{T}
+    KY::Vector{T}
+    v::Vector{T}
+    nuinf::Vector{T}
+    nusup::Vector{T}
+end
+
+function EPMat{T<:AbstractFloat}(K::AbstractArray{T}, Y::Vector{T}, nuinf::Vector{T}, nusup::Vector{T}, beta::T)
+    M,N = size(K)
+    KKPD = full(beta * K' * K)
+    if beta != Inf
+        return EPMat(copy(KKPD), copy(KKPD), zeros(T,N,N), beta * K' * Y, zeros(T,N),nuinf,nusup)
+    else
+        error("I really should not be here")
+    end
+end
+
+
+struct EPMatT0{T<:AbstractFloat} <: AbstractEPMat
+    Σy::Matrix{T}
+    Σw::Matrix{T}
+    G::Matrix{T}
+    nuinf::Vector{T}
+    nusup::Vector{T}
+    vy::Vector{T}
+    vw::Vector{T}
+end
+
+function EPMatT0{T<:AbstractFloat}(K::AbstractArray{T,2}, Y::Vector{T}, nuinf::Vector{T}, nusup::Vector{T})
+    M,N = size(K)
+    M <= N || error("M=$M cannot be larger than N=$N")
+    return EPMatT0(zeros(T,M,M), zeros(T,N-M,N-M), copy(full(K[1:M,M+1:N])), nuinf,nusup,zeros(T,M),zeros(T,N-M))
+end
+
+mutable struct EPAlg{T<:AbstractFloat}
+    beta::T
+    minvar::T
+    maxvar::T
+    epsconv::T
+    damp::T
+    maxiter::Int
+    verbose::Bool
+end
+
+struct EPout{T<:AbstractFloat}
+    μ::Vector{T}
+    σ::Vector{T}
+    av::Vector{T}
+    va::Vector{T}
+    sol::EPFields{T}
+    status::Symbol
+end
 
 type MetNet
     N::Int # number of fluxes

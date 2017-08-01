@@ -1,15 +1,16 @@
-Φ(x) = 0.5*(1+erf(x/sqrt(2.)))
-ϕ(x) = exp(-x.^2/2)/sqrt(2π)
+Φ(x) = 0.5*(1.0+erf(x/sqrt(2.0)))
+ϕ(x) = exp(-x.^2/2.0)/sqrt(2π)
 
 function inplaceinverse!(dest::AbstractArray,source::AbstractArray)
     dest = copy!(dest, source)
-    Base.LinAlg.inv!(cholfact!(dest))
+    Base.LinAlg.inv!(cholfact!(Hermitian(dest)))
 end
 
 # K * x == Y 
 # K stoichiometrix matrix M x N (M metabolites, N fluxes)
 # Y = N dimensional vector
 # nusup, nuinf =  N-dimensional vectors with fluxes' lower and upper bounds
+metabolicEP(X::COBRA.LPproblem; args...) = metabolicEP(X.S, X.b, X.lb, X.ub; args...) # convinence for runnning directly on Lpproblems
 
 function metabolicEP{T<:AbstractFloat}(K::AbstractArray{T,2}, Y::Array{T,1}, nuinf::Array{T,1}, nusup::Array{T,1};
                                        beta::Real=1e7,      # inverse temperature
@@ -22,135 +23,248 @@ function metabolicEP{T<:AbstractFloat}(K::AbstractArray{T,2}, Y::Array{T,1}, nui
                                        solution::Union{EPout{T},Void}=nothing,  # start from a solution
                                        expval=nothing)      # fix posterior probability experimental values for std and mean
    
+
+    lnuinf = copy(nuinf) # making  a local copy to rescale
+    lnusup = copy(nusup)
+    
+    updatefunction,scalefact,epfield = prepareinput(K,Y,lnuinf,lnusup,beta,verbose,solution,expval,T)
+
+    scaleepfield!(epfield,lnusup,lnuinf,Y,1.0/scalefact) # rescaling fields in [0,1]
+
+    
+    epalg = EPAlg(beta, minvar, maxvar, epsconv, damp, maxiter,verbose)    
+    updatealg = beta < Inf ? eponesweep! : eponesweepT0!
+    epmat = beta < Inf ? EPMat(K,Y,lnuinf, lnusup, beta) : EPMatT0(K,Y,lnuinf, lnusup)
+    
+    
+    returnstatus=epconverge!(epfield,epmat,epalg, updatealg)
+    scaleepfield!(epfield,lnusup,lnuinf,Y,scalefact)
+    return  EPout(epfield.μ,epfield.s, epfield.av, epfield.va, epfield, returnstatus)
+end
+
+
+function prepareinput(K,Y,nuinf,nusup,beta,verbose,solution,expval,T)
+
     M,N = size(K) 
     M < N || warn("M = $M ≥ N = $N")
     sum(nusup .< nuinf) == 0 || error("lower bound fluxes > upper bound fluxes. Consider swapping lower and upper bounds")     
+
     verbose && println("Analyzing a $M x $N stoichiometric matrix.")
-    returnstatus = :unconverged
-    expsite = -1
+    
+    updatefunction = if beta == Inf
+        if isstandardform(K)
+            eponesweepT0!
+        else
+            error("for T = 0 algorithm, S should be [I | M] whre I is the Identity and M any matrix")
+        end
+    else
+        eponesweep!
+    end
+
     scalefact = max(maximum(abs.(nuinf)), maximum(abs.(nusup)))
 
-    siteflagave = trues(N)
-    siteflagvar = trues(N)
-
     if solution === nothing
-        X = EPFields(N,expval,scalefact,T)
+        epfield = EPFields(N,expval,scalefact,T)
     else
-        X = solution.sol
+        epfield = deepcopy(solution.sol) # preserve the original solution!
     end
-#    @extract X av var a b D μ s new_a new_b siteflagave siteflagvar
-    av = X.av
-    var = X.var
-    a = X.a
-    b = X.b
-    D = X.D
-    μ = X.μ
-    s = X.s
-    new_a = X.new_a
-    new_b = X.new_b
-    siteflagave = X.siteflagave
-    siteflagvar = X.siteflagvar
+
     
-    scale!(nusup,1.0/scalefact)
-    scale!(nuinf,1.0/scalefact)
-    scale!(Y,1.0/scalefact)
+    return updatefunction,scalefact,epfield
+end
 
-    KK = K' * K 
-    KY = K' * Y
+function epconverge!{T<:Function,M<:AbstractEPMat}(epfield::EPFields,epmat::M,epalg::EPAlg, eponesweep!::T)
 
-    scale!(KK,beta)
-    scale!(KY,beta)
-
+    @extract epalg : maxiter verbose epsconv
+    
+    returnstatus = :unconverged
     iter = 0
-    
-    I = zeros(N)
-    v = zeros(N)
-    KKPD = copy(KK)
-    invKKD = zeros(N,N)
-
-    @inbounds while iter < maxiter       
+    while iter < maxiter
         iter += 1
-        errμ   = typemin(T)
-        errs   = typemin(T)
-        errav  = typemin(T)
-        errvar = typemin(T)
-        for i in 1:N
-             KKPD[i,i] = KK[i,i] + D[i]
-        end
-        inplaceinverse!(invKKD,KKPD)       
-        for i=1:N
-             I[i] = invKKD[i,i]
-        end
-        A_mul_B!(v,invKKD, (KY + D.*a))
+        (errav,errvar,errμ, errs) = eponesweep!(epfield,epalg, epmat)
+        verbose && @printf("it = %d beta = %g errav = %g errvar = %g errμ = %g errs = %g\n",
+                           iter, epalg.beta, errav, errvar, errμ, errs)
         
-        for i in 1:N
-            I[i] = min(I[i],b[i])
-            s1   = max(minvar,1/I[i] - 1/b[i])
-            news = max(minvar,1/s1) 
-            errs = max(errs,abs(news-s[i])) 
-            s[i] = news
-            if I[i] != b[i]
-                newμ = (v[i]-a[i]*I[i]/b[i])/(1.0-I[i]/b[i])
-                errμ = max(errμ,abs(μ[i]-newμ))
-                isinf(errμ) && (println("μ[$i] = ", μ[i]," newμ = $newμ"); break) 
-                μ[i] = newμ
-            else
-                warn("I'm here: nusup[$i] = ",nusup[i]," nuinf[$i] = ",nuinf[i], " I[$i] = ",I[i])
-                newμ = 0.5 * (nusup[i] + nuinf[i])
-                errμ = max(errμ,abs(μ[i]-newμ))
-                μ[i] = newμ
-            end
-            sqrts  = sqrt(s[i])
-            xsup   = (nusup[i] - μ[i])/sqrts
-            xinf   = (nuinf[i] - μ[i])/sqrts
-
-            scra1,scra12 = compute_mom5d(xinf,xsup)
-            if siteflagave[i]
-                avnew = μ[i] + scra1 * sqrts
-                errav = max(errav, abs(av[i] - avnew))               
-            else
-                avnew = av[i]
-            end
-            if siteflagvar[i]
-                varnew = max(minvar, s[i] * (1.0 + scra12))                                        
-                errvar = max(errvar, abs(var[i]-varnew))
-            else
-                varnew = var[i]
-            end
-
-            av[i]  = avnew
-            var[i] = varnew            
-
-            isnan(avnew) || isnan(varnew) && println("avnew = $avnew varnew = $varnew")
-            isnan(a[i]) || isnan(b[i])  && println("a[$i] = ", a[i]," b[$i] = ",b[i])
-            
-            new_b[i] = min(maxvar, max(minvar, 1./(1./var[i] - 1./s[i])))
-            new_a[i] = av[i] + new_b[i]*(av[i] - μ[i])/s[i]
-            a[i] = damp*a[i]  + (1.0 - damp)*new_a[i]
-            b[i] = damp*b[i]  + (1.0 - damp)*new_b[i]            
-        end
-        
-        for i=1:N
-            D[i] = 1./b[i]
-        end
-        verbose && @printf("it = %d beta = %g errav = %g errvar = %g errμ = %g errs = %g\n", iter, beta, errav, errvar, errμ, errs)
-        if max(errav, errvar,errμ,errs) < epsconv 
-            returnstatus=:converged
+        #if max(errav, errvar,errμ,errs) < epsconv
+        if max(errav, errvar) < epsconv
+            returnstatus = :converged
             break
         end
-    end   
+    end
+    return returnstatus
+end
 
-    
+
+
+function scaleepfield!(X,nuinf,nusup,Y,scalefact)
+    @extract X : μ s av va
     scale!(μ, scalefact)
     scale!(s, scalefact^2)
     scale!(av, scalefact)
-    scale!(var, scalefact^2)
+    scale!(va, scalefact^2)
     scale!(nusup,scalefact)
     scale!(nuinf,scalefact)
     scale!(Y,scalefact)
-
-    return EPout(μ,s, av, var, X, returnstatus)
 end
+
+function eponesweepT0!(epfields::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
+    @extract epfields : av va a b μ s siteflagave siteflagvar
+    @extract epalg : beta minvar maxvar epsconv damp
+    @extract epmatT0 : Σy Σw G nuinf nusup vy vw 
+    
+    M = size(G,1)
+    N = length(av)
+
+    idxy = 1:M
+    idxw = M+1:N
+
+    ay,aw = view(a,idxy), view(a,idxw)
+    by,bw = view(b,idxy), view(b,idxw)
+    sy,sw = view(s,idxy), view(s,idxw)
+    μy,μw = view(μ,idxy), view(μ,idxw)
+    avy,avw = view(av,idxy), view(av,idxw)
+    vay,vaw = view(va,idxy), view(va,idxw)
+
+    minerr = typemin(av[1])
+    errav,errva,errμ,errs = minerr,minerr,minerr,minerr
+
+    #Σw = inv(Diagonal(1.0 ./ bw) + G' * Diagonal( 1.0 ./ by ) * G)
+    fast_similarity_inv!(Σw, bw,  by, G)
+    A_mul_B!(Σy,G*Σw,G')    
+    A_mul_B!(vw,Σw, aw ./ bw - G'*(ay ./ by))
+    A_mul_B!(vy,G,vw)
+    for i in eachindex(vy) vy[i] = -vy[i] end
+
+    
+    for i in eachindex(μw)  # loop M+1:N
+        newμw,newsw = newμs(Σw[i,i],aw[i],bw[i],vw[i],nuinf[i+M],nusup[i+M], minvar,maxvar)
+        errμ = max(errμ, abs(μw[i]-newμw))
+        errs = max(errs, abs(sw[i]-newsw))
+        μw[i] = newμw
+        sw[i] = newsw
+#        println("μw[$(i+M)] = ", μw[i]," sw[$(i+M)] = ", sw[i], " Σw = ",Σw[i,i] )
+
+        
+        newavw,newvaw = newav(sw[i],μw[i],avw[i],vaw[i],siteflagave[i+M],siteflagvar[i+M],
+                              nuinf[i+M],nusup[i+M],minvar,maxvar)
+        errav = max(errav,abs(avw[i]-newavw))
+        errva = max(errva,abs(vaw[i]-newvaw))
+        avw[i] = newavw
+        vaw[i] = newvaw 
+
+        newaw,newbw = matchmom(μw[i],sw[i],avw[i],vaw[i],minvar,maxvar)
+        aw[i] = damp * aw[i] + (1.0-damp)*newaw
+        bw[i] = damp * bw[i] + (1.0-damp)*newbw
+    end
+    
+    for i in eachindex(μy)   # loop  1:M
+        
+        newμy,newsy = newμs(Σy[i,i],ay[i],by[i], vy[i],nuinf[i],nusup[i],minvar,maxvar)
+        errμ = max(errμ, abs(μy[i]-newμy))
+        errs = max(errs, abs(sy[i]-newsy))
+        μy[i] = newμy
+        sy[i] = newsy
+#        println("μy[$i] = ", μy[i]," sy[$i] = ", sy[i], " Σ = ", Σy[i,i], " (",nuinf[i],":",nusup[i],")"," ay[$i] = ",ay[i], " by[$i] = ", by[i])
+        
+        newavy,newvay = newav(sy[i],μy[i],avy[i],vay[i],siteflagave[i],siteflagvar[i],
+                              nuinf[i],nusup[i],minvar,maxvar)
+        errav = max(errav,abs(avy[i]-newavy))
+        errva = max(errva,abs(vay[i]-newvay))
+        avy[i] = newavy
+        vay[i] = newvay 
+        
+        neway,newby = matchmom(μy[i],sy[i],avy[i],vay[i],minvar,maxvar)
+        ay[i] = damp * ay[i] + (1.0-damp)*neway
+        by[i] = damp * by[i] + (1.0-damp)*newby
+    end    
+    return errav,errav, errμ, errs
+end    
+
+function matchmom(μ,s,av,va, minvar,maxvar)
+    newb = clamp(inv(1.0/va - 1.0/s),minvar,maxvar)
+    newa = av + newb*(av-μ)/s
+    isnan(newa) || isnan(newb) && warn("a = $newa b = $newb")
+    return newa, newb
+end
+
+function newav(s,μ,av,va,siteflagave,siteflagvar,nuinf,nusup, minvar, maxvar)
+    sqrts = sqrt(s)
+    xinf = (nuinf - μ) / sqrts
+    xsup = (nusup - μ) / sqrts
+    scra1,scra12 = compute_mom5d(xinf,xsup)
+    avnew  = siteflagave ? μ + scra1*sqrts : av 
+    varnew = siteflagvar ? max(minvar,s*(1.0+scra12)) : va    
+    isnan(avnew) || isnan(varnew) && println("avnew = $avnew varnew = $varnew")
+    return avnew, varnew
+end
+
+function newμs(Σ,a,b,v,nuinf,nusup,minvar,maxvar)
+
+    Σ == 0 && (Σ = minvar)
+    #lΣ = clamp(Σ,minvar,maxvar)
+    #s = Σ > 0 ? clamp(inv(1.0/Σ - 1.0/b),minvar,maxvar) : minvar   
+    s = clamp(inv(1.0/Σ - 1.0/b),minvar,maxvar)   
+    μ = if Σ != b 
+        s * (v/Σ - a/b)
+    else
+        warn("I'm here: nusup = ",nusup," nuinf = ",nuinf, " Σ = ", Σ)
+        0.5 * (nusup+nuinf)
+    end
+    return μ,s
+end
+
+let DDwXDy = Dict{Int,Matrix}()
+    global fast_similarity_inv!
+    function fast_similarity_inv!{T<:AbstractFloat}(dest::Matrix{T},Dw,Dy,G)        
+        NmM = length(Dw)
+        DwXDy = Base.get!(DDwXDy,NmM,zeros(T,NmM,NmM))
+        fill!(DwXDy,zero(T))
+        @inbounds for i in eachindex(Dw)
+            DwXDy[i,i] = 1.0 / Dw[i]
+        end
+        BLAS.syrk!('U','T',1.0, Diagonal((1./sqrt.(Dy)))*G,1.0,DwXDy)        
+        inplaceinverse!(dest, DwXDy)
+        return nothing
+    end
+end
+
+
+function eponesweep!(X::EPFields,epalg::EPAlg, epmat::EPMat)
+    @extract X : av va a b μ s siteflagave siteflagvar
+    @extract epalg : beta minvar maxvar epsconv damp
+    @extract epmat : KK KKPD invKKPD nuinf nusup KY v
+    
+    for i in eachindex(b)
+        KKPD[i,i] = KK[i,i] + 1.0/b[i]
+    end
+    inplaceinverse!(invKKPD,KKPD)
+
+    minerr = typemin(av[1])
+    errav,errva,errμ,errs = minerr,minerr,minerr,minerr
+
+    A_mul_B!(v,invKKPD, (KY + a./b))
+    
+    for i in eachindex(av)
+        newμ,news = newμs(invKKPD[i,i],a[i],b[i],v[i],nuinf[i],nusup[i],minvar, maxvar)
+        errμ = max(errμ, abs(μ[i]-newμ))
+        errs = max(errs, abs(s[i]-news))
+        μ[i] = newμ
+        s[i] = news
+
+
+        newave,newva = newav(s[i],μ[i],av[i],va[i],siteflagave[i],siteflagvar[i],nuinf[i],nusup[i],minvar,maxvar)
+        errav = max(errav,abs(av[i]-newave))
+        errva = max(errva,abs(va[i]-newva))
+        av[i] = newave
+        va[i] = newva
+        
+        newa,newb = matchmom(μ[i],s[i],av[i],va[i],minvar,maxvar)
+        a[i] = damp * a[i] + (1.0-damp)*newa
+        b[i] = damp * b[i] + (1.0-damp)*newb
+    end
+    return errav,errva,errμ,errs
+end
+
 
 function compute_mom5d(xinf, xsup)
   
@@ -245,4 +359,4 @@ end
 _parseexpval!(nothing,siteflagave::BitArray{1},siteflagvar::BitArray{1})=(Dict{Int,Float64}(),Dict{Int,Float64}())
 
 
-metabolicEP(X::COBRA.LPproblem; args...) = metabolicEP(X.S, X.b, X.lb, X.ub; args...) # convinence for runnning directly on Lpproblems 
+
