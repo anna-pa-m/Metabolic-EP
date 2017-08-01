@@ -154,9 +154,16 @@ function echelonize{T<:DenseArray}(X::T; eps::Real=1e-10)
         abs(res[i]) < eps && (res[i] = zero(res[i]))
     end
 
-    for i in 1:size(res,1)
-        abs(1.0 - res[i,i]) < eps  && (res[i,i] = one(res[i,i]))
+    # trimming zeros        
+    for i in 1:Mred
+        abs(1.0 - res[i,i]) < eps  && (res[i,i] = one(res[i,i])) 
     end
-
+    
+    # the system is (I -  G) * x = 0
+    # flip G -> -G 
+    for j in Mred+1:N, i in 1:Mred    
+        res[i,j] *= -1.0            
+    end
+            
     idxrow,newidx,res
 end

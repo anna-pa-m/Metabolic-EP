@@ -1,5 +1,5 @@
-Φ(x) = 0.5*(1+erf(x/sqrt(2.)))
-ϕ(x) = exp(-x.^2/2)/sqrt(2π)
+Φ(x) = 0.5*(1.0+erf(x/sqrt(2.0)))
+ϕ(x) = exp(-x.^2/2.0)/sqrt(2π)
 
 function inplaceinverse!(dest::AbstractArray,source::AbstractArray)
     dest = copy!(dest, source)
@@ -124,10 +124,11 @@ function eponesweepT0!(epfields::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
     minerr = typemin(av[1])
     errav,errva,errμ,errs = minerr,minerr,minerr,minerr
 
-    Σw = inv(Diagonal(1.0 ./ bw) + G' * Diagonal( 1.0 ./ by ) * G)
+#    Σw = inv(Diagonal(1.0 ./ bw) + G' * Diagonal( 1.0 ./ by ) * G)
+    fast_similarity_inv!(Σw, bw,  by, G)
     A_mul_B!(Σy,G*Σw,G')    
-    A_mul_B!(vw,Σw, aw ./ bw - G'*(ay ./ by))
-    A_mul_B!(vy,-G,vw)
+    A_mul_B!(vw,Σw, aw ./ bw + G'*(ay ./ by))
+    A_mul_B!(vy,G,vw)
     
 
     
@@ -197,8 +198,9 @@ function newav(s,μ,av,va,siteflagave,siteflagvar,nuinf,nusup, minvar, maxvar)
 end
 
 function newμs(Σ,a,b,v,nuinf,nusup,minvar,maxvar)
+#    s = Σ > 0 ? clamp(inv(1.0/Σ - 1.0/b),minvar,maxvar) : minvar   
     s = clamp(inv(1.0/Σ - 1.0/b),minvar,maxvar)   
-    μ = if Σ != b && Σ != 0
+    μ = if Σ != b 
         s * (v/Σ - a/b)
     else
         warn("I'm here: nusup = ",nusup," nuinf = ",nuinf, " Σ = ", Σ)
@@ -209,14 +211,14 @@ end
 
 let DDwXDy = Dict{Int,Matrix}()
     global fast_similarity_inv!
-    function fast_similarity_inv!{T<:AbstractFloat}(dest,Dw::Vector{T},Dy::Vector{T},G)        
+    function fast_similarity_inv!{T<:AbstractFloat}(dest::Matrix{T},Dw,Dy,G)        
         NmM = length(Dw)
         DwXDy = Base.get!(DDwXDy,NmM,zeros(T,NmM,NmM))
+        fill!(DwXDy,zero(T))
         @inbounds for i in eachindex(Dw)
             DwXDy[i,i] = 1.0 / Dw[i]
         end
-        BLAS.syrk!('U','T',1.0, Diagonal((1./sqrt.(Dy)))*G,1.0,DwXDy)
-        
+        BLAS.syrk!('U','T',1.0, Diagonal((1./sqrt.(Dy)))*G,1.0,DwXDy)        
         inplaceinverse!(dest, DwXDy)
         return nothing
     end
