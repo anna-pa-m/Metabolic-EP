@@ -105,12 +105,3 @@ function _reduceproblem(S, b, lb, ub, fixedvar::Array{Tuple{Int64,Float64},1})
     SimpleNet(nS[idx,:], nb1, nlb, nub, idxnonfix, idx)
 end
 
-#da rimuovere !!
-function idxlicols{T<:DenseArray}(X::T;tol::Float64=1e-10)
-    sum(abs2,X) == 0 && (return(Array{Int,1}(),Array{Int,2}()))
-    Q,R,E = qr(X,Val{true})  
-    diagr = abs.(diag(R))
-    r = find(diagr .>= tol*diagr[1])[end]
-    idx = sort(E[1:r])
-    return idx
-end
