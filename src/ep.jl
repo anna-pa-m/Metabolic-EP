@@ -177,8 +177,8 @@ function eponesweepT0!(epfields::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
         ay[i] = damp * ay[i] + (1.0-damp)*neway
         by[i] = damp * by[i] + (1.0-damp)*newby
     end    
-    return errav,errav, errμ, errs
-end    
+    return errav, errva, errμ, errs
+end
 
 function matchmom(μ,s,av,va, minvar,maxvar)
     newb = clamp(inv(1.0/va - 1.0/s),minvar,maxvar)
