@@ -110,7 +110,7 @@ end
 function eponesweepT0!(epfields::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
     @extract epfields : av va a b μ s siteflagave siteflagvar
     @extract epalg : beta minvar maxvar epsconv damp
-    @extract epmatT0 : Σy Σw G nuinf nusup vy vw 
+    @extract epmatT0 : Σy Σw G nuinf nusup vy vw Y 
     
     M = size(G,1)
     N = length(av)
@@ -133,7 +133,7 @@ function eponesweepT0!(epfields::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
     A_mul_B!(Σy,G*Σw,G')    
     A_mul_B!(vw,Σw, aw ./ bw - G'*(ay ./ by))
     A_mul_B!(vy,G,vw)
-    for i in eachindex(vy) vy[i] = -vy[i] end
+    for i in eachindex(vy) vy[i] = -vy[i] + Y[i] end
 
     
     for i in eachindex(μw)  # loop M+1:N
@@ -177,8 +177,8 @@ function eponesweepT0!(epfields::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
         ay[i] = damp * ay[i] + (1.0-damp)*neway
         by[i] = damp * by[i] + (1.0-damp)*newby
     end    
-    return errav,errav, errμ, errs
-end    
+    return errav, errva, errμ, errs
+end
 
 function matchmom(μ,s,av,va, minvar,maxvar)
     newb = clamp(inv(1.0/va - 1.0/s),minvar,maxvar)
@@ -357,6 +357,3 @@ function _parseexpval!{T<:Vector}(expval::T,siteflagave::BitArray{1},siteflagvar
 end
 
 _parseexpval!(nothing,siteflagave::BitArray{1},siteflagvar::BitArray{1})=(Dict{Int,Float64}(),Dict{Int,Float64}())
-
-
-

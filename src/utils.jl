@@ -99,8 +99,9 @@ function reduceModel(X::COBRA.LPproblem; solverName::Symbol=:Gurobi,solParams=[]
         end
     end
     return COBRA.LPproblem(X.S,X.b,X.c,minFlux,maxFlux,X.osense,X.csense,X.rxns,X.mets)
-
 end
+
+
 
 function reduceModel!(X::COBRA.LPproblem; solverName::Symbol=:Gurobi,solParams=[],optPercentage::Float64=100.0, tiny=1e-10)
         
@@ -127,7 +128,7 @@ function reduceModel!(X::COBRA.LPproblem; solverName::Symbol=:Gurobi,solParams=[
     return nothing
 end
 
-function idxlicols{T<:DenseArray}(X::T;tol::Float64=1e-10)
+function idxlicols{T<:DenseArray}(X::T; tol::Float64=1e-10)
     sum(abs2,X) == 0 && (return(Array{Int,1}(),Array{Int,2}()))
     Q,R,E = qr(X,Val{true})  
     diagr = abs.(diag(R))
@@ -150,10 +151,9 @@ end
 
 
 function standardform(X::COBRA.LPproblem)
-    idxrow, idxcol, res = echelonize(full(X.S))
+    idxrow, idxcol, res, bnew = echelonize(full(X.S), X.b)
     (length(idxrow),length(idxcol)) == size(res) || BoundsError()    
-    COBRA.LPproblem(sparse(res),X.b[idxrow],X.c[idxcol],X.lb[idxcol],X.ub[idxcol],X.osense, X.csense[idxrow], X.rxns[idxcol], X.mets[idxrow])
-    
+    COBRA.LPproblem(sparse(res),bnew,X.c[idxcol],X.lb[idxcol],X.ub[idxcol],X.osense, X.csense[idxrow], X.rxns[idxcol], X.mets[idxrow])    
 end
 
 isstandardform(X::COBRA.LPproblem) = isstandardform(X.S)
@@ -161,26 +161,26 @@ isstandardform(S::SparseMatrixCSC) = S[1:size(S,1),1:size(S,1)] == speye(size(S,
 isstandardform(S::DenseMatrix) = S[1:size(S,1),1:size(S,1)] == eye(size(S,1)) 
 
 
-function echelonize{T<:DenseArray}(X::T; eps::Real=1e-10)
+function echelonize{T<:DenseArray}(X::T, b::Vector; eps::Real=1e-10)
     M,N = size(X)
 
     idxrow = idxlicols(X')
     Mred = length(idxrow)
-    
     idxind = idxlicols(X)
     idxdep = setdiff(1:N,idxind)
     newidx = vcat(idxind,idxdep)
     Tv = @view X[idxrow,newidx] 
-    res =  inv(Tv[1:Mred,1:Mred]) * Tv
+    iTv = inv(Tv[1:Mred,1:Mred])
+    res =   iTv * Tv
     for i in eachindex(res)
         abs(res[i]) < eps && (res[i] = zero(res[i]))
     end
-
+    
+    bnew = iTv * b[idxrow]
+    
     # trimming zeros        
     for i in 1:Mred
         abs(1.0 - res[i,i]) < eps  && (res[i,i] = one(res[i,i])) 
     end
-
-
-    idxrow,newidx,res
+    idxrow,newidx,res, bnew
 end
