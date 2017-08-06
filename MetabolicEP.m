@@ -66,14 +66,13 @@ while (err > precision && iter < max_iter)
     iter = iter + 1;
 
     % fast computation of the means and variances of the truncated Gaussians 
-	
-	I1 = inv(KK + D);
-	v = (I1) * (KB + D*a);
-	I = diag(I1);
-	I = min(I,d);
-	s1 = min(maxvar, 1./I - 1./d);
-	s = max(minvar,1./s1);
-	mu = (v-(a.*I)./d)./(1-I./d);
+    I1 = inv(KK + D);
+    v = (I1) * (KB + D*a);
+    I = diag(I1);
+    I = min(I,d);
+    s1 = min(maxvar, 1./I - 1./d);
+    s = max(minvar,1./s1);
+    mu = (v-(a.*I)./d)./(1-I./d);
   
     % compute means and variances of the tilted distributions
     s05 = s.^0.5;
