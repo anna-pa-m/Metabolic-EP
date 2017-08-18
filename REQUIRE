@@ -1,4 +1,4 @@
-julia 0.6.0 0.7-
+julia 0.6-rc0
 MAT
 COBRA
 ExtractMacro
