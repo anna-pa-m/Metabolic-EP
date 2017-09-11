@@ -70,9 +70,11 @@ while (err > precision && iter < max_iter)
     v = (I1) * (KB + D*a);
     I = diag(I1);
     I = min(I,d);
-    s1 = min(maxvar, 1./I - 1./d);
-    s = max(minvar,1./s1);
+    s1 = min(maxvar, max(minvar, 1./I - 1./d));
+    %s = max(minvar,1./s1);
+    s = 1./s1;
     mu = (v-(a.*I)./d)./(1-I./d);
+    mu(I == d) = 0.5*(nuinf(I == d) + nusup(I == d));
   
     % compute means and variances of the tilted distributions
     s05 = s.^0.5;
