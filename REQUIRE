@@ -2,3 +2,4 @@ julia 0.6-rc0
 MAT
 COBRA
 ExtractMacro
+SpecialFunctions
