@@ -96,7 +96,7 @@ Input (optional argument).
 - `verbose` (``true`` or ``false``): default ``true``
 - `damp` (∈ (0,1) newfield = damp * oldfield + (1-damp)* newfield): default 0.9  
 - `epsconv` (convergence criterion): default 1e-6
-- `maxiter` (maximum number of iterations): default 200
+- `maxiter` (maximum number of iterations): default 2000
 - `maxvar`  (threshold on maximum variance): default 1e50
 - `minvar`  (threshold on minimum variance): default 1e-50
 - `solution` (start from solution. Is of type ``EPout``): default: ``nothing``
