@@ -79,7 +79,7 @@ function prepareinput(K,Y,lb,ub,beta,verbose,solution,expval,T)
     M < N || warn("M = $M ≥ N = $N")
     sum(ub .< lb) == 0 || error("lower bound fluxes > upper bound fluxes. Consider swapping lower and upper bounds")     
 
-    verbose && println("Analyzing a $M x $N stoichiometric matrix.")
+    verbose && println(STDERR, "Analyzing a $M x $N stoichiometric matrix.")
     
     updatefunction = if beta == Inf
         if isstandardform(K)
@@ -109,18 +109,28 @@ function epconverge!{T<:Function,M<:AbstractEPMat}(epfield::EPFields,epmat::M,ep
     
     returnstatus = :unconverged
     iter = 0
+    print(STDERR, "Converging with β=$(epalg.beta) maxth=$(epsconv) maxiter=$(maxiter):\n")
     while iter < maxiter
         iter += 1
         (errav,errvar,errμ, errs) = eponesweep!(epfield,epalg, epmat)
-        verbose && @printf("it = %d beta = %g errav = %g errvar = %g errμ = %g errs = %g\n",
-                           iter, epalg.beta, errav, errvar, errμ, errs)
+        if (verbose)
+            @printf(STDERR, "it = %d ɛav = %.2e ɛvar = %.2e ɛμ = %.2e ɛs = %.2e                 \r", iter, errav, errvar, errμ, errs)
+            flush(STDERR)
+        end
         
         #if max(errav, errvar,errμ,errs) < epsconv
+#        print(STDERR, "th = $(max(errav,errvar)) it = $(iter) errav = $(errav) errvar = $(errvar) errμ = $(errμ) errs=$(errs)                     \r")
+
         if max(errav, errvar) < epsconv
             returnstatus = :converged
             break
         end
     end
+    if (verbose)
+        print(STDERR, "\n")
+        flush(STDERR)
+    end
+
     return returnstatus
 end
 
