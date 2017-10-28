@@ -6,13 +6,43 @@ function inplaceinverse!(dest::AbstractArray,source::AbstractArray)
     Base.LinAlg.inv!(cholfact!(Hermitian(dest)))
 end
 
-# K * x == Y 
-# K stoichiometrix matrix M x N (M metabolites, N fluxes)
-# Y = N dimensional vector
-# nusup, nuinf =  N-dimensional vectors with fluxes' lower and upper bounds
+"""
+res=metabolicEP(S,b,lb,ub,...)
+
+
+The output in res is of type ``EPout`: there are several fields:
+-   ``μ::Vector``: A parameter linked to the mean of the posterior probability 
+-   ``σ::Vector``: A parameter linked to the std  of the posterior probability 
+-   ``av::Vector``: The mean posterior probability
+-   ``va::Vector``: The variance of the posterior probability
+-   ``sol::EPFields``: The internal field status. From this value we can
+restart the sampling from a specific state.
+-   ``status::Symbol``: either ``:converged`` or ``:unconverged``.
+
+Input (required)
+----
+- `S`: MxN matrix (either sparse or dense) please note that if you input a dense version, the algorithm is slighlty more efficient. Dense matrices can be create from sparse ones with ``full(S)``.
+- `b`: a vector of M intakes/uptakes 
+- `lb`: a vector of lengh N of lower bounds.
+- `ub`: a vector of lengh N of upper bounds.
+
+Input (optional arguments). 
+----
+- `beta` (inverse temperature::``Real``): default 10^7 
+- `verbose` (``true`` or ``false``): default ``true``
+- `damp` (∈ (0,1) newfield = damp * oldfield + (1-damp)* newfield): default 0.9  
+- `epsconv` (convergence criterion): default 1e-6
+- `maxiter` (maximum number of iterations): default 2000
+- `maxvar`  (threshold on maximum variance): default 1e50
+- `minvar`  (threshold on minimum variance): default 1e-50
+- `solution` (start from solution. Is of type ``EPout``): default: ``nothing``
+- `expval` (fix to posterior probability of mean and/or variance to values): default ``nothing``. expval can be either at ``Tuple{Float64,Float64,Int}`` or a ``Vector{Tuple{Float64,Float64,Int}}``. Values can be fixed as``expval=(0.2,0.4,4)`` meaning that for flux index 4 the mean is set to 0.2 and the variance to 0.4. Fixing more values ``expval=[(0.2, 0.3, 4), (0.4, nothing, 5)]``: in this case, we fix the posterior of flux 4 to 0.2 (mean) and 0.3 (variance), while for flux 5 we fix the mean to 0.4 and we keep the variance free.
+
+"""
+
 metabolicEP(X::COBRA.LPproblem; args...) = metabolicEP(X.S, X.b, X.lb, X.ub; args...) # convinence for runnning directly on Lpproblems
 
-function metabolicEP{T<:AbstractFloat}(K::AbstractArray{T,2}, Y::Array{T,1}, nuinf::Array{T,1}, nusup::Array{T,1};
+function metabolicEP{T<:AbstractFloat}(K::AbstractArray{T,2}, Y::Array{T,1}, lb::Array{T,1}, ub::Array{T,1};
                                        beta::Real=1e7,      # inverse temperature
                                        verbose::Bool=true,  # output verbosity
                                        damp::Real=0.9,      # damp ∈ (0,1) newfield = damp * oldfield + (1-damp)* newfield
@@ -24,30 +54,30 @@ function metabolicEP{T<:AbstractFloat}(K::AbstractArray{T,2}, Y::Array{T,1}, nui
                                        expval=nothing)      # fix posterior probability experimental values for std and mean
    
 
-    lnuinf = copy(nuinf) # making  a local copy to rescale
-    lnusup = copy(nusup)
+    llb = copy(lb) # making  a local copy to rescale
+    lub = copy(ub)
     
-    updatefunction,scalefact,epfield = prepareinput(K,Y,lnuinf,lnusup,beta,verbose,solution,expval,T)
+    updatefunction,scalefact,epfield = prepareinput(K,Y,llb,lub,beta,verbose,solution,expval,T)
 
-    scaleepfield!(epfield,lnusup,lnuinf,Y,1.0/scalefact) # rescaling fields in [0,1]
+    scaleepfield!(epfield,lub,llb,Y,1.0/scalefact) # rescaling fields in [0,1]
 
     
     epalg = EPAlg(beta, minvar, maxvar, epsconv, damp, maxiter,verbose)    
     updatealg = beta < Inf ? eponesweep! : eponesweepT0!
-    epmat = beta < Inf ? EPMat(K,Y,lnuinf, lnusup, beta) : EPMatT0(K,Y,lnuinf, lnusup)
+    epmat = beta < Inf ? EPMat(K,Y,llb, lub, beta) : EPMatT0(K,Y,llb, lub)
     
     
     returnstatus=epconverge!(epfield,epmat,epalg, updatealg)
-    scaleepfield!(epfield,lnusup,lnuinf,Y,scalefact)
+    scaleepfield!(epfield,lub,llb,Y,scalefact)
     return  EPout(epfield.μ,epfield.s, epfield.av, epfield.va, epfield, returnstatus)
 end
 
 
-function prepareinput(K,Y,nuinf,nusup,beta,verbose,solution,expval,T)
+function prepareinput(K,Y,lb,ub,beta,verbose,solution,expval,T)
 
     M,N = size(K) 
     M < N || warn("M = $M ≥ N = $N")
-    sum(nusup .< nuinf) == 0 || error("lower bound fluxes > upper bound fluxes. Consider swapping lower and upper bounds")     
+    sum(ub .< lb) == 0 || error("lower bound fluxes > upper bound fluxes. Consider swapping lower and upper bounds")     
 
     verbose && println("Analyzing a $M x $N stoichiometric matrix.")
     
@@ -61,7 +91,7 @@ function prepareinput(K,Y,nuinf,nusup,beta,verbose,solution,expval,T)
         eponesweep!
     end
 
-    scalefact = max(maximum(abs.(nuinf)), maximum(abs.(nusup)))
+    scalefact = max(maximum(abs.(lb)), maximum(abs.(ub)))
 
     if solution === nothing
         epfield = EPFields(N,expval,scalefact,T)
@@ -96,21 +126,21 @@ end
 
 
 
-function scaleepfield!(X,nuinf,nusup,Y,scalefact)
+function scaleepfield!(X,lb,ub,Y,scalefact)
     @extract X : μ s av va
     scale!(μ, scalefact)
     scale!(s, scalefact^2)
     scale!(av, scalefact)
     scale!(va, scalefact^2)
-    scale!(nusup,scalefact)
-    scale!(nuinf,scalefact)
+    scale!(ub,scalefact)
+    scale!(lb,scalefact)
     scale!(Y,scalefact)
 end
 
 function eponesweepT0!(epfields::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
     @extract epfields : av va a b μ s siteflagave siteflagvar
     @extract epalg : beta minvar maxvar epsconv damp
-    @extract epmatT0 : Σy Σw G nuinf nusup vy vw Y 
+    @extract epmatT0 : Σy Σw G lb ub vy vw Y 
     
     M = size(G,1)
     N = length(av)
@@ -137,7 +167,7 @@ function eponesweepT0!(epfields::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
 
     
     for i in eachindex(μw)  # loop M+1:N
-        newμw,newsw = newμs(Σw[i,i],aw[i],bw[i],vw[i],nuinf[i+M],nusup[i+M], minvar,maxvar)
+        newμw,newsw = newμs(Σw[i,i],aw[i],bw[i],vw[i],lb[i+M],ub[i+M], minvar,maxvar)
         errμ = max(errμ, abs(μw[i]-newμw))
         errs = max(errs, abs(sw[i]-newsw))
         μw[i] = newμw
@@ -146,7 +176,7 @@ function eponesweepT0!(epfields::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
 
         
         newavw,newvaw = newav(sw[i],μw[i],avw[i],vaw[i],siteflagave[i+M],siteflagvar[i+M],
-                              nuinf[i+M],nusup[i+M],minvar,maxvar)
+                              lb[i+M],ub[i+M],minvar,maxvar)
         errav = max(errav,abs(avw[i]-newavw))
         errva = max(errva,abs(vaw[i]-newvaw))
         avw[i] = newavw
@@ -159,15 +189,15 @@ function eponesweepT0!(epfields::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
     
     for i in eachindex(μy)   # loop  1:M
         
-        newμy,newsy = newμs(Σy[i,i],ay[i],by[i], vy[i],nuinf[i],nusup[i],minvar,maxvar)
+        newμy,newsy = newμs(Σy[i,i],ay[i],by[i], vy[i],lb[i],ub[i],minvar,maxvar)
         errμ = max(errμ, abs(μy[i]-newμy))
         errs = max(errs, abs(sy[i]-newsy))
         μy[i] = newμy
         sy[i] = newsy
-#        println("μy[$i] = ", μy[i]," sy[$i] = ", sy[i], " Σ = ", Σy[i,i], " (",nuinf[i],":",nusup[i],")"," ay[$i] = ",ay[i], " by[$i] = ", by[i])
+#        println("μy[$i] = ", μy[i]," sy[$i] = ", sy[i], " Σ = ", Σy[i,i], " (",lb[i],":",ub[i],")"," ay[$i] = ",ay[i], " by[$i] = ", by[i])
         
         newavy,newvay = newav(sy[i],μy[i],avy[i],vay[i],siteflagave[i],siteflagvar[i],
-                              nuinf[i],nusup[i],minvar,maxvar)
+                              lb[i],ub[i],minvar,maxvar)
         errav = max(errav,abs(avy[i]-newavy))
         errva = max(errva,abs(vay[i]-newvay))
         avy[i] = newavy
@@ -187,10 +217,10 @@ function matchmom(μ,s,av,va, minvar,maxvar)
     return newa, newb
 end
 
-function newav(s,μ,av,va,siteflagave,siteflagvar,nuinf,nusup, minvar, maxvar)
+function newav(s,μ,av,va,siteflagave,siteflagvar,lb,ub, minvar, maxvar)
     sqrts = sqrt(s)
-    xinf = (nuinf - μ) / sqrts
-    xsup = (nusup - μ) / sqrts
+    xinf = (lb - μ) / sqrts
+    xsup = (ub - μ) / sqrts
     scra1,scra12 = compute_mom5d(xinf,xsup)
     avnew  = siteflagave ? μ + scra1*sqrts : av 
     varnew = siteflagvar ? max(minvar,s*(1.0+scra12)) : va    
@@ -198,7 +228,7 @@ function newav(s,μ,av,va,siteflagave,siteflagvar,nuinf,nusup, minvar, maxvar)
     return avnew, varnew
 end
 
-function newμs(Σ,a,b,v,nuinf,nusup,minvar,maxvar)
+function newμs(Σ,a,b,v,lb,ub,minvar,maxvar)
 
     Σ == 0 && (Σ = minvar)
     #lΣ = clamp(Σ,minvar,maxvar)
@@ -207,8 +237,8 @@ function newμs(Σ,a,b,v,nuinf,nusup,minvar,maxvar)
     μ = if Σ != b 
         s * (v/Σ - a/b)
     else
-        warn("I'm here: nusup = ",nusup," nuinf = ",nuinf, " Σ = ", Σ)
-        0.5 * (nusup+nuinf)
+        warn("I'm here: ub = ",ub," lb = ",lb, " Σ = ", Σ)
+        0.5 * (ub+lb)
     end
     return μ,s
 end
@@ -232,7 +262,7 @@ end
 function eponesweep!(X::EPFields,epalg::EPAlg, epmat::EPMat)
     @extract X : av va a b μ s siteflagave siteflagvar
     @extract epalg : beta minvar maxvar epsconv damp
-    @extract epmat : KK KKPD invKKPD nuinf nusup KY v
+    @extract epmat : KK KKPD invKKPD lb ub KY v
     
     for i in eachindex(b)
         KKPD[i,i] = KK[i,i] + 1.0/b[i]
@@ -245,14 +275,14 @@ function eponesweep!(X::EPFields,epalg::EPAlg, epmat::EPMat)
     A_mul_B!(v,invKKPD, (KY + a./b))
     
     for i in eachindex(av)
-        newμ,news = newμs(invKKPD[i,i],a[i],b[i],v[i],nuinf[i],nusup[i],minvar, maxvar)
+        newμ,news = newμs(invKKPD[i,i],a[i],b[i],v[i],lb[i],ub[i],minvar, maxvar)
         errμ = max(errμ, abs(μ[i]-newμ))
         errs = max(errs, abs(s[i]-news))
         μ[i] = newμ
         s[i] = news
 
 
-        newave,newva = newav(s[i],μ[i],av[i],va[i],siteflagave[i],siteflagvar[i],nuinf[i],nusup[i],minvar,maxvar)
+        newave,newva = newav(s[i],μ[i],av[i],va[i],siteflagave[i],siteflagvar[i],lb[i],ub[i],minvar,maxvar)
         errav = max(errav,abs(av[i]-newave))
         errva = max(errva,abs(va[i]-newva))
         av[i] = newave
