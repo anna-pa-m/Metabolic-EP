@@ -51,6 +51,10 @@ Nf = length(idxf);
 C = A(:,idxf);
 Cp = C';
 y = A(:,end);
+
+basis = zeros(Nr,Nf);
+basis(idxd,:) = -A(:,idxf);
+basis(idxf,:) = eye(Nf, Nf);
 Df = sparse(1:Nf, 1:Nf, 1./d(idxf));
 Dd = sparse(1:Nd, 1:Nd, 1./d(idxd));
 
@@ -113,7 +117,7 @@ while ((err_avva > precision || err_lin > precision_lin) && iter < max_iter)
     Df = sparse(1:Nf, 1:Nf, 1./d(idxf));
     Dd = sparse(1:Nd, 1:Nd, 1./d(idxd));
     %if(~(mod(iter,100)))
-        fprintf('it:%i err_lin:%e conv_EP:%e\n', iter, err_lin, err_avva);
+    fprintf('it:%i err_lin:%e conv_EP:%e\n', iter, err_lin, err_avva);
     %end
 end
 t = toc;
@@ -130,6 +134,7 @@ Df = sparse(1:Nf, 1:Nf, 1./d(idxf));
 Dd = sparse(1:Nd, 1:Nd, 1./d(idxd));
 M = Df + Cp*Dd*C;
 Cov = inv(M);
+Cov = basis * Cov * basis';
 
 if(iter < max_iter && ~(isnan(err_lin)))
     fprintf('EP converged\nit:%i err:%e conv_EP:%e\n', iter, err_lin, err_avva);
