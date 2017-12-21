@@ -21,12 +21,13 @@ va_exp = 0;
 exp_i = 0;
 
 
-[mu, s, a, d, av, va, t_EP]  = MetabolicEP(full(model.S),model.b,model.lb,model.ub,Beta, damping, maxit, minvar, maxvar, precision,  av_exp, va_exp, exp_i);
+[mu, s, a, d, av, va, Cov, t_EP]  = MetabolicEP(full(model.S),model.b,model.lb,model.ub,Beta, damping, maxit, minvar, maxvar, precision,  av_exp, va_exp, exp_i);
 
 %% Beta -> \infty implementation
 
 precision_lin = 1e-7;
 [muT0, sT0, aT0, dT0, avT0, vaT0, CovT0, t_EPT0] = MetabolicEPT0(full(model.S), model.b, model.lb, model.ub, damping, maxit, minvar, maxvar, precision, precision_lin);
+
 
 %% Ex: fix biomass flux of E.Coli 
 
