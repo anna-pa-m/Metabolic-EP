@@ -1,4 +1,4 @@
-function [mu, s, a,d, av, va, t] = MetabolicEP(S, b, nuinf, nusup, Beta, damp, max_iter, minvar, maxvar, precision, av_exp, var_exp, exp_i)
+function [mu, s, a,d, av, va, Cov, t] = MetabolicEP(S, b, nuinf, nusup, Beta, damp, max_iter, minvar, maxvar, precision, av_exp, var_exp, exp_i)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%																			
@@ -32,6 +32,7 @@ function [mu, s, a,d, av, va, t] = MetabolicEP(S, b, nuinf, nusup, Beta, damp, m
 %%% - d: vector containing the variances of the approximated priors
 %%% - av: averages of the truncated Gaussians of the approximation
 %%% - va: variances of the truncated Gaussians of the approximation
+%%% - Cov: convariance matrix of the fluxes
 %%% - t: running time
 %%%
 %%% The marginal probability density of the n-th flux is a truncated Gaussian N(mu(n),s(n)) in the interval [nuinf, nusup]. It has average av(n) and variance va(n)
@@ -114,6 +115,8 @@ a = a*factor;
 d = d*factor^2;
 av = av*factor;
 va = va*factor^2;
+D = sparse(1:Nr, 1:Nr, 1./d);
+Cov = inv(KK + D);
 fprintf('Time %f\n', t);
 
 end
