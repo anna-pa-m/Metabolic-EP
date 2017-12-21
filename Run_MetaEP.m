@@ -9,8 +9,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%	
 
 
-
-model = Ec_iJR904;
+load('~/Metabolic-EP/test/ecoli_core_model.mat');
 Beta=1e7;
 damping=0.9;
 precision=1e-6;
@@ -24,9 +23,15 @@ exp_i = 0;
 
 [mu, s, a, d, av, va, t_EP]  = MetabolicEP(full(model.S),model.b,model.lb,model.ub,Beta, damping, maxit, minvar, maxvar, precision,  av_exp, va_exp, exp_i);
 
-%% fix biomass flux of E.Coli 
+%% Beta -> \infty implementation
+
+precision_lin = 1e-7;
+[muT0, sT0, aT0, dT0, avT0, vaT0, CovT0, t_EPT0] = MetabolicEPT0(full(model.S), model.b, model.lb, model.ub, damping, maxit, minvar, maxvar, precision, precision_lin);
+
+%% Ex: fix biomass flux of E.Coli 
 
 % uncontrained run
+load('~/Metabolic-EP/Ec_iJR904.mat')
 model = Ec_iJR904;
 index_glc = strmatch('D Glucose exchange', model.rxnNames);
 model.lb(index_glc) = -43;
