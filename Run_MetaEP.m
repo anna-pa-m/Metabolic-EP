@@ -9,8 +9,9 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%	
 
 
-load('~/Metabolic-EP/test/ecoli_core_model.mat');
-Beta=1e7;
+load('test/ecoli_core_model.mat');
+pmodel = pre_processing(model);
+Beta=1e9;
 damping=0.9;
 precision=1e-6;
 maxit=2000;
@@ -21,21 +22,22 @@ va_exp = 0;
 exp_i = 0;
 
 
-[mu, s, a, d, av, va, Cov, t_EP]  = MetabolicEP(full(model.S),model.b,model.lb,model.ub,Beta, damping, maxit, minvar, maxvar, precision,  av_exp, va_exp, exp_i);
+[mu, s, a, d, av, va, Cov, t_EP]  = MetabolicEP(full(pmodel.S),pmodel.b,pmodel.lb,pmodel.ub,Beta, damping, maxit, minvar, maxvar, precision,  av_exp, va_exp, exp_i);
 
 %% Beta -> \infty implementation
 
 precision_lin = 1e-7;
-[muT0, sT0, aT0, dT0, avT0, vaT0, CovT0, t_EPT0] = MetabolicEPT0(full(model.S), model.b, model.lb, model.ub, damping, maxit, minvar, maxvar, precision, precision_lin);
+[muT0, sT0, aT0, dT0, avT0, vaT0, CovT0, t_EPT0] = MetabolicEPT0(full(pmodel.S), pmodel.b, pmodel.lb, pmodel.ub, damping, maxit, minvar, maxvar, precision, precision_lin);
 
 
 %% Ex: fix biomass flux of E.Coli 
 
+clear all
 % uncontrained run
-load('~/Metabolic-EP/Ec_iJR904.mat')
-model = Ec_iJR904;
-index_glc = strmatch('D Glucose exchange', model.rxnNames);
-model.lb(index_glc) = -43;
+load('Ec_iJR904.mat')
+index_glc = strmatch('D Glucose exchange', Ec_iJR904.rxnNames);
+Ec_iJR904.lb(index_glc) = -43;
+model = pre_processing(Ec_iJR904);
 exp_i = 0;
 av_exp = 0;
 va_exp = 0;
@@ -50,9 +52,6 @@ maxvar=1e50;
 [mu_free, s_free, a_free,d_free, av_free, va_free, t_EP_free]  = MetabolicEP(full(model.S),model.b,model.lb,model.ub,Beta, damping, maxit, minvar, maxvar, precision, av_exp, va_exp, exp_i);
 
 % constrained run
-model = Ec_iJR904;
-index_glc = strmatch('D Glucose exchange', model.rxnNames);
-model.lb(index_glc) = -43;
 exp_i = strmatch('BiomassEcoli', model.rxnNames);
 av_exp = 0.92;
 va_exp = 0.0324;
