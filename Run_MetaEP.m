@@ -24,6 +24,10 @@ exp_i = 0;
 
 [mu, s, a, d, av, va, Cov, t_EP]  = MetabolicEP(full(pmodel.S),pmodel.b,pmodel.lb,pmodel.ub,Beta, damping, maxit, minvar, maxvar, precision,  av_exp, va_exp, exp_i);
 
+idx_bm = strmatch('Biomass_Ecoli_core_w_GAM', pmodel.rxns);
+color = [0, 0 ,1];
+plot_fluxmarginal(-1e3, 1e3, mu(idx_bm), s(idx_bm), pmodel.lb(idx_bm),pmodel.ub(idx_bm), ...
+                av(idx_bm) , sqrt(va(idx_bm)), color );
 %% Beta -> \infty implementation
 
 precision_lin = 1e-7;
