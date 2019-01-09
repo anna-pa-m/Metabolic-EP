@@ -3,8 +3,9 @@
 %%% Run Expectation Propagation algorithm for COBRA models of metabolic networks
 %%%
 %%% 1) Load and put your data in "model" variable (MATLAB format is required) 
-%%% 2) Choose input parameters for EP algorithm (see MetabolicEP m-file for a detailed description)
-%%% 3) Run this script
+%%% 2) Pre-process your model 
+%%% 3) Choose input parameters for EP algorithm (see MetabolicEP m-file for a detailed description)
+%%% 4) Run this script
 %%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%	
 
@@ -21,9 +22,9 @@ av_exp = 0;
 va_exp = 0;
 exp_i = 0;
 
-
 [mu, s, a, d, av, va, Cov, t_EP]  = MetabolicEP(full(pmodel.S),pmodel.b,pmodel.lb,pmodel.ub,Beta, damping, maxit, minvar, maxvar, precision,  av_exp, va_exp, exp_i);
 
+% plot Biomass marginal
 idx_bm = strmatch('Biomass_Ecoli_core_w_GAM', pmodel.rxns);
 color = [0, 0 ,1];
 plot_fluxmarginal(-1e3, 1e3, mu(idx_bm), s(idx_bm), pmodel.lb(idx_bm),pmodel.ub(idx_bm), ...
@@ -33,6 +34,8 @@ plot_fluxmarginal(-1e3, 1e3, mu(idx_bm), s(idx_bm), pmodel.lb(idx_bm),pmodel.ub(
 precision_lin = 1e-7;
 [muT0, sT0, aT0, dT0, avT0, vaT0, CovT0, t_EPT0] = MetabolicEPT0(full(pmodel.S), pmodel.b, pmodel.lb, pmodel.ub, damping, maxit, minvar, maxvar, precision, precision_lin);
 
+plot_fluxmarginal(-1e3, 1e3, muT0(idx_bm), sT0(idx_bm), pmodel.lb(idx_bm),pmodel.ub(idx_bm), ...
+                avT0(idx_bm) , sqrt(vaT0(idx_bm)), color );
 
 %% Ex: fix biomass flux of E.Coli 
 
