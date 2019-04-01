@@ -51,7 +51,6 @@ Nf = length(idxf);
 C = A(:,idxf);
 Cp = C';
 y = A(:,end);
-
 basis = zeros(Nr,Nf);
 basis(idxd,:) = -A(:,idxf);
 basis(idxf,:) = eye(Nf, Nf);

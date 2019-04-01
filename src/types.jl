@@ -85,7 +85,7 @@ end
 function EPMatT0(K::AbstractArray{T,2}, Y::Vector{T}, lb::Vector{T}, ub::Vector{T}) where T <: Real
     M,N = size(K)
     M <= N || error("M=$M cannot be larger than N=$N")
-    return EPMatT0(zeros(T,M,M), zeros(T,N-M,N-M), copy(full(K[1:M,M+1:N])), lb,ub,zeros(T,M),zeros(T,N-M),Y)
+    return EPMatT0(zeros(T,M,M), zeros(T,N-M,N-M), copy(Matrix(K[1:M,M+1:N])), lb,ub,zeros(T,M),zeros(T,N-M),Y)
 end
 
 struct EPAlg{T<:AbstractFloat}

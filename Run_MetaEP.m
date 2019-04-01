@@ -12,7 +12,8 @@
 
 load('test/ecoli_core_model.mat');
 pmodel = pre_processing(model);
-Beta=1e9;
+pmodel = model;
+Beta=1e10;
 damping=0.9;
 precision=1e-6;
 maxit=2000;

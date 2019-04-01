@@ -52,21 +52,18 @@ function metabolicEP(K::AbstractArray{T,2}, Y::Array{T,1}, lb::Array{T,1}, ub::A
                      solution::Union{EPout{T},Nothing}=nothing,  # start from a solution
                      expval=nothing # fix posterior probability experimental values for std and mean
                      ) where T<:Real
-   
+
 
     llb = copy(lb) # making  a local copy to rescale
     lub = copy(ub)
-    
     updatefunction,scalefact,epfield = prepareinput(K,Y,llb,lub,beta,verbose,solution,expval,T)
 
     scaleepfield!(epfield,lub,llb,Y,1.0/scalefact) # rescaling fields in [0,1]
 
-    
-    epalg = EPAlg(beta, minvar, maxvar, epsconv, damp, maxiter,verbose)    
+
+    epalg = EPAlg(beta, minvar, maxvar, epsconv, damp, maxiter,verbose)
     updatealg = beta < Inf ? eponesweep! : eponesweepT0!
     epmat = beta < Inf ? EPMat(K,Y,llb, lub, beta) : EPMatT0(K,Y,llb, lub)
-    
-    
     returnstatus=epconverge!(epfield,epmat,epalg, updatealg)
     scaleepfield!(epfield,lub,llb,Y,scalefact)
     return  EPout(epfield.μ,epfield.s, epfield.av, epfield.va, epfield, returnstatus)
@@ -75,18 +72,19 @@ end
 
 function prepareinput(K,Y,lb,ub,beta,verbose,solution,expval,T)
 
-    M,N = size(K) 
-    M < N || warn("M = $M ≥ N = $N")
-    sum(ub .< lb) == 0 || error("lower bound fluxes > upper bound fluxes. Consider swapping lower and upper bounds")     
+    M,N = size(K)
+    M < N || @warn("M = $M ≥ N = $N")
+    sum(ub .< lb) == 0 || error("lower bound fluxes > upper bound fluxes. Consider swapping lower and upper bounds") 
 
     verbose && println(stderr, "Analyzing a $M x $N stoichiometric matrix.")
-    
+#    updatefunction = if beta == Inf
+#        if isstandardform(K)
+#            eponesweepT0!
+#        else
+#            error("for T = 0 algorithm, S should be [I | M] where I is the Identity and M any matrix")
+#        end
     updatefunction = if beta == Inf
-        if isstandardform(K)
-            eponesweepT0!
-        else
-            error("for T = 0 algorithm, S should be [I | M] whre I is the Identity and M any matrix")
-        end
+        eponesweepT0!
     else
         eponesweep!
     end
@@ -99,7 +97,6 @@ function prepareinput(K,Y,lb,ub,beta,verbose,solution,expval,T)
         epfield = deepcopy(solution.sol) # preserve the original solution!
     end
 
-    
     return updatefunction,scalefact,epfield
 end
 
@@ -148,10 +145,10 @@ function eponesweepT0!(epfields::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
     @extract epfields : av va a b μ s siteflagave siteflagvar
     @extract epalg : beta minvar maxvar epsconv damp
     @extract epmatT0 : Σy Σw G lb ub vy vw Y 
-    
+
     M = size(G,1)
     N = length(av)
-
+    # Is G = [I | Matrix] or G = Matrix ?
     idxy = 1:M
     idxw = M+1:N
 
@@ -167,12 +164,11 @@ function eponesweepT0!(epfields::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
 
     #Σw = inv(Diagonal(1.0 ./ bw) + G' * Diagonal( 1.0 ./ by ) * G)
     fast_similarity_inv!(Σw, bw,  by, G)
-    mul!(Σy,G*Σw,G')    
+    mul!(Σy,G*Σw,G')
     mul!(vw,Σw, aw ./ bw - G'*(ay ./ by))
     mul!(vy,G,vw)
     for i in eachindex(vy) vy[i] = -vy[i] + Y[i] end
 
-    
     for i in eachindex(μw)  # loop M+1:N
         newμw,newsw = newμs(Σw[i,i],aw[i],bw[i],vw[i],lb[i+M],ub[i+M], minvar,maxvar)
         errμ = max(errμ, abs(μw[i]-newμw))
@@ -220,7 +216,7 @@ end
 function matchmom(μ,s,av,va, minvar,maxvar)
     newb = clamp(inv(1.0/va - 1.0/s),minvar,maxvar)
     newa = av + newb*(av-μ)/s
-    isnan(newa) || isnan(newb) && warn("a = $newa b = $newb")
+    isnan(newa) || isnan(newb) && @warn("a = $newa b = $newb")
     return newa, newb
 end
 
@@ -244,7 +240,7 @@ function newμs(Σ,a,b,v,lb,ub,minvar,maxvar)
     μ = if Σ != b 
         s * (v/Σ - a/b)
     else
-        warn("I'm here: ub = ",ub," lb = ",lb, " Σ = ", Σ)
+        #@warn("I'm here: ub = ",ub," lb = ",lb, " Σ = ", Σ)
         0.5 * (ub+lb)
     end
     return μ,s
