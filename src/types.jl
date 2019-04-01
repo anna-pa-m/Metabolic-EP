@@ -1,4 +1,4 @@
-immutable EPFields{T<:AbstractFloat}
+struct EPFields{T<:AbstractFloat}
     av::Vector{T}
     va::Vector{T}
     a::Vector{T}
@@ -36,7 +36,7 @@ function EPFields(N::Int,expval,scalefact,T)
 end
 
 
-function EPFields(N::Int,expval::Void,scalefact,T)    
+function EPFields(N::Int,expval::Nothing,scalefact,T)    
 
     return EPFields(zeros(T,N),
              zeros(T,N),
@@ -60,9 +60,9 @@ struct EPMat{T<:AbstractFloat} <: AbstractEPMat
     ub::Vector{T}
 end
 
-function EPMat{T<:AbstractFloat}(K::AbstractArray{T}, Y::Vector{T}, lb::Vector{T}, ub::Vector{T}, beta::T)
+function EPMat(K::AbstractArray{T}, Y::Vector{T}, lb::Vector{T}, ub::Vector{T}, beta::T) where T <: Real
     M,N = size(K)
-    KKPD = full(beta * K' * K)
+    KKPD = Matrix(beta * K' * K)
     if beta != Inf
         return EPMat(copy(KKPD), copy(KKPD), zeros(T,N,N), beta * K' * Y, zeros(T,N),lb,ub)
     else
@@ -82,13 +82,13 @@ struct EPMatT0{T<:AbstractFloat} <: AbstractEPMat
     Y::Vector{T}
 end
 
-function EPMatT0{T<:AbstractFloat}(K::AbstractArray{T,2}, Y::Vector{T}, lb::Vector{T}, ub::Vector{T})
+function EPMatT0(K::AbstractArray{T,2}, Y::Vector{T}, lb::Vector{T}, ub::Vector{T}) where T <: Real
     M,N = size(K)
     M <= N || error("M=$M cannot be larger than N=$N")
     return EPMatT0(zeros(T,M,M), zeros(T,N-M,N-M), copy(full(K[1:M,M+1:N])), lb,ub,zeros(T,M),zeros(T,N-M),Y)
 end
 
-mutable struct EPAlg{T<:AbstractFloat}
+struct EPAlg{T<:AbstractFloat}
     beta::T
     minvar::T
     maxvar::T
@@ -107,7 +107,7 @@ struct EPout{T<:AbstractFloat}
     status::Symbol
 end
 
-type MetNet
+struct MetNet
     N::Int # number of fluxes
     M::Int # number of metabolites
     S::SparseMatrixCSC{Float64,Int} # Stoichiometric matrix M x N sparse

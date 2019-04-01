@@ -82,86 +82,30 @@ function ReadMatrix(filename::String)
 
 end
 
-function reduceModel(X::COBRA.LPproblem; solverName::Symbol=:Gurobi,solParams=[],optPercentage::Float64=100.0, tiny=1e-10)
 
-    solver = COBRA.changeCobraSolver(solverName, solParams)
-    minFlux, maxFlux, optSol, fbaSol, fvamin, fvamax = COBRA.distributedFBA(X, solver, nWorkers=1, optPercentage=optPercentage)    
-    for i in eachindex(maxFlux)
-        deltaflux = maxFlux[i] - minFlux[i] 
-        if -tiny <= deltaflux <= tiny 
-            if abs(maxFlux[i]) < tiny
-                maxFlux[i] = 0.0
-                minFlux[i] = 0.0
-            else
-                maxFlux[i] = 0.5*(minFlux[i] + maxFlux[i])
-                minFlux[i] = maxFlux[i]
-            end
-        end
-    end
-    return COBRA.LPproblem(X.S,X.b,X.c,minFlux,maxFlux,X.osense,X.csense,X.rxns,X.mets)
-end
+# function idxlicols(X; tol::Float64=1e-10)
+#     sum(abs2,X) == 0 && (return(Array{Int,1}(),Array{Int,2}()))
+#     Q,R,E = qr(X,Val{true})  
+#     diagr = abs.(diag(R))
+#     r = find(diagr .>= tol*diagr[1])[end]
+#     idx = sort(E[1:r])
+#     return idx
+# end
 
 
-
-function reduceModel!(X::COBRA.LPproblem; solverName::Symbol=:Gurobi,solParams=[],optPercentage::Float64=100.0, tiny=1e-10)
-        
-    solver = COBRA.changeCobraSolver(solverName, solParams)
-    minFlux, maxFlux, optSol, fbaSol, fvamin, fvamax = COBRA.distributedFBA(X, solver, nWorkers=1, optPercentage=optPercentage)    
-
-    for i in eachindex(X.lb)
-        deltaflux = maxFlux[i] - minFlux[i] 
-        if deltaflux > tiny 
-            X.lb[i] = minFlux[i]
-            X.ub[i] = maxFlux[i]
-        elseif -tiny <= deltaflux <= tiny 
-            if abs(X.lb[i]) < tiny
-                X.lb[i] = 0.0
-                X.ub[i] = 0.0
-            else
-                X.lb[i] = 0.5*(minFlux[i] + maxFlux[i])
-                X.ub[i] = X.lb[i]
-            end
-        else
-            warn("lb[$i] = ", lb[i], " ub[$i] = ",ub[i])
-        end
-    end
-    return nothing
-end
-
-function idxlicols{T<:DenseArray}(X::T; tol::Float64=1e-10)
-    sum(abs2,X) == 0 && (return(Array{Int,1}(),Array{Int,2}()))
-    Q,R,E = qr(X,Val{true})  
-    diagr = abs.(diag(R))
-    r = find(diagr .>= tol*diagr[1])[end]
-    idx = sort(E[1:r])
-    return idx
-end
-
-
-function simplereducestandardform(X)    
-
-    RX = reduceModel(X)  
-    @extract RX : S b c lb ub csense osense rxns mets
-    M,N = size(S)
-    idxfixed = find(lb .== ub .* lb .== 0) 
-    idxrow = setdiff(1:M,idxfixed)
-    idxcol = setdiff(1:N,idxfixed)
-    COBRA.LPproblem(S[idxrow,idxcol],b[idxrow],c[idxcol],lb[idxcol],ub[idxcol],osense, csense[idxrow], rxns[idxcol], mets[idxrow])       
-end
-
-
-function standardform(X::COBRA.LPproblem)
-    idxrow, idxcol, res, bnew = echelonize(full(X.S), X.b)
-    (length(idxrow),length(idxcol)) == size(res) || BoundsError()    
-    COBRA.LPproblem(sparse(res),bnew,X.c[idxcol],X.lb[idxcol],X.ub[idxcol],X.osense, X.csense[idxrow], X.rxns[idxcol], X.mets[idxrow])    
-end
-
-isstandardform(X::COBRA.LPproblem) = isstandardform(X.S)
 isstandardform(S::SparseMatrixCSC) = S[1:size(S,1),1:size(S,1)] == speye(size(S,1))
 isstandardform(S::DenseMatrix) = S[1:size(S,1),1:size(S,1)] == eye(size(S,1)) 
 
 
-function echelonize{T<:DenseArray}(X::T, b::Vector; eps::Real=1e-10)
+
+function idxlicols(X)
+    sum(abs2,X) == 0 && (return(Array{eltype(X),2}()))
+    res = qr(X,Val(true))   
+    return res.p
+end
+
+
+function echelonize(X::DenseArray, b::Vector; eps::Real=1e-10)
     M,N = size(X)
 
     idxrow = idxlicols(X')

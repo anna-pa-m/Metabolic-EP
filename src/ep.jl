@@ -1,10 +1,12 @@
+using LinearAlgebra
 Φ(x) = 0.5*(1.0+erf(x/sqrt(2.0)))
 ϕ(x) = exp(-x.^2/2.0)/sqrt(2π)
 
 function inplaceinverse!(dest::AbstractArray,source::AbstractArray)
-    dest = copy!(dest, source)
-    Base.LinAlg.inv!(cholfact!(Hermitian(dest)))
+    dest = copyto!(dest, source)
+    LinearAlgebra.inv!(cholesky!(Hermitian(dest)))
 end
+
 
 """
 res=metabolicEP(S,b,lb,ub,...)
@@ -21,7 +23,7 @@ restart the sampling from a specific state.
 
 Input (required)
 ----
-- `S`: MxN matrix (either sparse or dense) please note that if you input a dense version, the algorithm is slighlty more efficient. Dense matrices can be create from sparse ones with ``full(S)``.
+- `S`: MxN matrix (either sparse or dense) please note that if you input a dense version, the algorithm is slighlty more efficient. Dense matrices can be create from sparse ones with ``Matrix(S)``.
 - `b`: a vector of M intakes/uptakes 
 - `lb`: a vector of lengh N of lower bounds.
 - `ub`: a vector of lengh N of upper bounds.
@@ -39,19 +41,17 @@ Input (optional arguments).
 - `expval` (fix to posterior probability of mean and/or variance to values): default ``nothing``. expval can be either at ``Tuple{Float64,Float64,Int}`` or a ``Vector{Tuple{Float64,Float64,Int}}``. Values can be fixed as``expval=(0.2,0.4,4)`` meaning that for flux index 4 the mean is set to 0.2 and the variance to 0.4. Fixing more values ``expval=[(0.2, 0.3, 4), (0.4, nothing, 5)]``: in this case, we fix the posterior of flux 4 to 0.2 (mean) and 0.3 (variance), while for flux 5 we fix the mean to 0.4 and we keep the variance free.
 
 """
-
-metabolicEP(X::COBRA.LPproblem; args...) = metabolicEP(X.S, X.b, X.lb, X.ub; args...) # convinence for runnning directly on Lpproblems
-
-function metabolicEP{T<:AbstractFloat}(K::AbstractArray{T,2}, Y::Array{T,1}, lb::Array{T,1}, ub::Array{T,1};
-                                       beta::Real=1e7,      # inverse temperature
-                                       verbose::Bool=true,  # output verbosity
-                                       damp::Real=0.9,      # damp ∈ (0,1) newfield = damp * oldfield + (1-damp)* newfield
-                                       epsconv::Real=1e-6,  # convergence criterion
-                                       maxiter::Int=2000,   # maximum iteration count
-                                       maxvar::Real=1e50,   # maximum numerical variance
-                                       minvar::Real=1e-50,  # minimum numerical variance
-                                       solution::Union{EPout{T},Void}=nothing,  # start from a solution
-                                       expval=nothing)      # fix posterior probability experimental values for std and mean
+function metabolicEP(K::AbstractArray{T,2}, Y::Array{T,1}, lb::Array{T,1}, ub::Array{T,1};
+                     beta::Real=1e7,      # inverse temperature
+                     verbose::Bool=true,  # output verbosity
+                     damp::Real=0.9,      # damp ∈ (0,1) newfield = damp * oldfield + (1-damp)* newfield
+                     epsconv::Real=1e-6,  # convergence criterion
+                     maxiter::Int=2000,   # maximum iteration count
+                     maxvar::Real=1e50,   # maximum numerical variance
+                     minvar::Real=1e-50,  # minimum numerical variance
+                     solution::Union{EPout{T},Nothing}=nothing,  # start from a solution
+                     expval=nothing # fix posterior probability experimental values for std and mean
+                     ) where T<:Real
    
 
     llb = copy(lb) # making  a local copy to rescale
@@ -79,7 +79,7 @@ function prepareinput(K,Y,lb,ub,beta,verbose,solution,expval,T)
     M < N || warn("M = $M ≥ N = $N")
     sum(ub .< lb) == 0 || error("lower bound fluxes > upper bound fluxes. Consider swapping lower and upper bounds")     
 
-    verbose && println(STDERR, "Analyzing a $M x $N stoichiometric matrix.")
+    verbose && println(stderr, "Analyzing a $M x $N stoichiometric matrix.")
     
     updatefunction = if beta == Inf
         if isstandardform(K)
@@ -103,32 +103,29 @@ function prepareinput(K,Y,lb,ub,beta,verbose,solution,expval,T)
     return updatefunction,scalefact,epfield
 end
 
-function epconverge!{T<:Function,M<:AbstractEPMat}(epfield::EPFields,epmat::M,epalg::EPAlg, eponesweep!::T)
+function epconverge!(epfield::EPFields,epmat::M,epalg::EPAlg, eponesweep!::T) where {T<:Function,M<:AbstractEPMat}
 
     @extract epalg : maxiter verbose epsconv
     
     returnstatus = :unconverged
     iter = 0
-    print(STDERR, "Converging with β=$(epalg.beta) maxth=$(epsconv) maxiter=$(maxiter):\n")
+    print(stderr, "Converging with β=$(epalg.beta) maxth=$(epsconv) maxiter=$(maxiter):\n")
     while iter < maxiter
         iter += 1
         (errav,errvar,errμ, errs) = eponesweep!(epfield,epalg, epmat)
         if (verbose)
-            @printf(STDERR, "it = %d ɛav = %.2e ɛvar = %.2e ɛμ = %.2e ɛs = %.2e                 \r", iter, errav, errvar, errμ, errs)
-            flush(STDERR)
+            @printf(stderr, "it = %d ɛav = %.2e ɛvar = %.2e ɛμ = %.2e ɛs = %.2e                 \r", iter, errav, errvar, errμ, errs)
+            flush(stderr)
         end
         
-        #if max(errav, errvar,errμ,errs) < epsconv
-#        print(STDERR, "th = $(max(errav,errvar)) it = $(iter) errav = $(errav) errvar = $(errvar) errμ = $(errμ) errs=$(errs)                     \r")
-
         if max(errav, errvar) < epsconv
             returnstatus = :converged
             break
         end
     end
-    if (verbose)
-        print(STDERR, "\n")
-        flush(STDERR)
+    if verbose
+        print(stderr, "\n")
+        flush(stderr)
     end
 
     return returnstatus
@@ -138,13 +135,13 @@ end
 
 function scaleepfield!(X,lb,ub,Y,scalefact)
     @extract X : μ s av va
-    scale!(μ, scalefact)
-    scale!(s, scalefact^2)
-    scale!(av, scalefact)
-    scale!(va, scalefact^2)
-    scale!(ub,scalefact)
-    scale!(lb,scalefact)
-    scale!(Y,scalefact)
+    rmul!(μ, scalefact)
+    rmul!(s, scalefact^2)
+    rmul!(av, scalefact)
+    rmul!(va, scalefact^2)
+    rmul!(ub,scalefact)
+    rmul!(lb,scalefact)
+    rmul!(Y,scalefact)
 end
 
 function eponesweepT0!(epfields::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
@@ -170,9 +167,9 @@ function eponesweepT0!(epfields::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
 
     #Σw = inv(Diagonal(1.0 ./ bw) + G' * Diagonal( 1.0 ./ by ) * G)
     fast_similarity_inv!(Σw, bw,  by, G)
-    A_mul_B!(Σy,G*Σw,G')    
-    A_mul_B!(vw,Σw, aw ./ bw - G'*(ay ./ by))
-    A_mul_B!(vy,G,vw)
+    mul!(Σy,G*Σw,G')    
+    mul!(vw,Σw, aw ./ bw - G'*(ay ./ by))
+    mul!(vy,G,vw)
     for i in eachindex(vy) vy[i] = -vy[i] + Y[i] end
 
     
@@ -255,14 +252,14 @@ end
 
 let DDwXDy = Dict{Int,Matrix}()
     global fast_similarity_inv!
-    function fast_similarity_inv!{T<:AbstractFloat}(dest::Matrix{T},Dw,Dy,G)        
+    function fast_similarity_inv!(dest::Matrix{T},Dw,Dy,G) where T <: Real
         NmM = length(Dw)
         DwXDy = Base.get!(DDwXDy,NmM,zeros(T,NmM,NmM))
         fill!(DwXDy,zero(T))
         @inbounds for i in eachindex(Dw)
             DwXDy[i,i] = 1.0 / Dw[i]
         end
-        BLAS.syrk!('U','T',1.0, Diagonal((1./sqrt.(Dy)))*G,1.0,DwXDy)        
+        BLAS.syrk!('U','T',1.0, Diagonal((1.0/sqrt.(Dy)))*G,1.0,DwXDy)        
         inplaceinverse!(dest, DwXDy)
         return nothing
     end
@@ -282,7 +279,7 @@ function eponesweep!(X::EPFields,epalg::EPAlg, epmat::EPMat)
     minerr = typemin(av[1])
     errav,errva,errμ,errs = minerr,minerr,minerr,minerr
 
-    A_mul_B!(v,invKKPD, (KY + a./b))
+    mul!(v,invKKPD, (KY + a./b))
     
     for i in eachindex(av)
         newμ,news = newμs(invKKPD[i,i],a[i],b[i],v[i],lb[i],ub[i],minvar, maxvar)
@@ -355,7 +352,7 @@ function parseexpval!(expval,siteflagave::BitArray{1}, siteflagvar::BitArray{1},
     expave,expvar
 end
 
-function _parseexpval!{T<:Tuple}(expval::T,siteflagave::BitArray{1},siteflagvar::BitArray{1})
+function _parseexpval!(expval::Tuple,siteflagave::BitArray{1},siteflagvar::BitArray{1})
 
     N = length(siteflagave)
     length(expval) == 3 || error("We expect a 3-uple here")
@@ -375,7 +372,7 @@ function _parseexpval!{T<:Tuple}(expval::T,siteflagave::BitArray{1},siteflagvar:
     expave,expvar
 end
 
-function _parseexpval!{T<:Vector}(expval::T,siteflagave::BitArray{1},siteflagvar::BitArray{1})
+function _parseexpval!(expval::Vector,siteflagave::BitArray{1},siteflagvar::BitArray{1})
 
     N = length(siteflagave)    
     expave = Dict{Int,Float64}()

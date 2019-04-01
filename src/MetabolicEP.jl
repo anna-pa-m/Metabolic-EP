@@ -1,14 +1,21 @@
 module MetabolicEP
-using COBRA, MAT, ExtractMacro
+#using COBRA, MAT, ExtractMacro
+using MAT, ExtractMacro, SpecialFunctions, SparseArrays
+using SparseArrays: SparseMatrixCSC
+using Printf: @printf
+
 
 VERSION >= v"0.6.0-rc1" && using SpecialFunctions
 
-export metabolicEP, ReadMatrix, MetNet, EPFields, EPout, standardform, reduceModel, reduceiterative
+export metabolicEP, ReadMatrix, MetNet, EPFields, EPout #, standardform, reduceModel, reduceiterative
 
 include("types.jl")
 include("ep.jl")
 include("utils.jl")
-include("reduceiterative.jl")
+
+# we wait for COBRA to update ...
+
+# include("reduceiterative.jl")
 
 end # end module
 
