@@ -77,18 +77,13 @@ function prepareinput(K,Y,lb,ub,beta,verbose,solution,expval,T)
     sum(ub .< lb) == 0 || error("lower bound fluxes > upper bound fluxes. Consider swapping lower and upper bounds") 
 
     verbose && println(stderr, "Analyzing a $M x $N stoichiometric matrix.")
- #   updatefunction = if beta == Inf
- #       if isstandardform(K)
- #           eponesweepT0!
- #       else
- #           error("for T = 0 algorithm, S should be [I | M] where I is the Identity and M any matrix")
- #       end
- #   end
     updatefunction = if beta == Inf
-        eponesweepT0!
-    else
-        eponesweep!
-   end
+       if isstandardform(K)
+           eponesweepT0!
+       else
+           error("for T = 0 algorithm, S should be [I | M] where I is the Identity and M any matrix")
+       end
+    end
 
     scalefact = max(maximum(abs.(lb)), maximum(abs.(ub)))
 

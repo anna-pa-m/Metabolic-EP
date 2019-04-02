@@ -96,8 +96,8 @@ end
 #     return idx
 # end
 
-isstandardform(S::SparseMatrixCSC) = S[1:size(S,1),1:size(S,1)] == speye(size(S,1))
-isstandardform(S::DenseMatrix) = S[1:size(S,1),1:size(S,1)] == eye(size(S,1)) 
+isstandardform(S::SparseMatrixCSC) = sum(abs2,view(S,1:size(S,1),1:size(S,1)) - I) < 1e-12
+isstandardform(S::DenseMatrix) = sum(abs2,S[1:size(S,1),1:size(S,1)] -eye(size(S,1))) < 1e-12
 
 function idxlicols(X; tol::Float64=1e-10)
 #    sum(abs2,X) == 0 && (return(Array{eltype(X),2}()))
@@ -129,7 +129,7 @@ function echelonize(X::T,v; eps::Real=1e-10) where {T <:DenseArray}
     end
     bnew = iTv * v[idxrow]
     for i in 1:Mred
-        abs(1.0 - res[i,i]) < eps && (res[i,i] + one(res[i,i]))
+        abs(1.0 - res[i,i]) < eps && (res[i,i] = one(res[i,i]))
     end
 
     return idxdep, idxrow, newidx, res, bnew
