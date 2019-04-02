@@ -77,17 +77,18 @@ function prepareinput(K,Y,lb,ub,beta,verbose,solution,expval,T)
     sum(ub .< lb) == 0 || error("lower bound fluxes > upper bound fluxes. Consider swapping lower and upper bounds") 
 
     verbose && println(stderr, "Analyzing a $M x $N stoichiometric matrix.")
-#    updatefunction = if beta == Inf
-#        if isstandardform(K)
-#            eponesweepT0!
-#        else
-#            error("for T = 0 algorithm, S should be [I | M] where I is the Identity and M any matrix")
-#        end
+ #   updatefunction = if beta == Inf
+ #       if isstandardform(K)
+ #           eponesweepT0!
+ #       else
+ #           error("for T = 0 algorithm, S should be [I | M] where I is the Identity and M any matrix")
+ #       end
+ #   end
     updatefunction = if beta == Inf
         eponesweepT0!
     else
         eponesweep!
-    end
+   end
 
     scalefact = max(maximum(abs.(lb)), maximum(abs.(ub)))
 
@@ -101,6 +102,7 @@ function prepareinput(K,Y,lb,ub,beta,verbose,solution,expval,T)
 end
 
 function epconverge!(epfield::EPFields,epmat::M,epalg::EPAlg, eponesweep!::T) where {T<:Function,M<:AbstractEPMat}
+
 
     @extract epalg : maxiter verbose epsconv
     
@@ -148,7 +150,7 @@ function eponesweepT0!(epfields::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
 
     M = size(G,1)
     N = length(av)
-    # Is G = [I | Matrix] or G = Matrix ?
+    
     idxy = 1:M
     idxw = M+1:N
 
