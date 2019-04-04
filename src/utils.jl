@@ -112,7 +112,7 @@ function idxlicols(X; tol::Float64=1e-10)
 end
 
 
-function echelonize(X::T,v; eps::Real=1e-10) where {T <:DenseArray}
+function echelonize(X::T,v; eps::Real=1e-10) where T <:DenseArray
     M,N = size(X)
 
     idxrow = idxlicols(Matrix(X'))
@@ -124,15 +124,17 @@ function echelonize(X::T,v; eps::Real=1e-10) where {T <:DenseArray}
     Tv = @view X[idxrow,newidx] 
     iTv = inv(Tv[1:Mred, 1:Mred])
     res = iTv * Tv
+    # trimming zeros
     for i in eachindex(res)
         abs(res[i]) < eps && (res[i] = zero(res[i]))
     end
     bnew = iTv * v[idxrow]
+    # trimming ones
     for i in 1:Mred
         abs(1.0 - res[i,i]) < eps && (res[i,i] = one(res[i,i]))
     end
 
-    return idxdep, idxrow, newidx, res, bnew
+    return idxdep, newidx, res, bnew
 
 end
 

@@ -12,18 +12,17 @@ end
 res=metabolicEP(S,b,lb,ub,...)
 
 
-The output in res is of type ``EPout`: there are several fields:
--   ``μ::Vector``: A parameter linked to the mean of the posterior probability 
--   ``σ::Vector``: A parameter linked to the std  of the posterior probability 
--   ``av::Vector``: The mean posterior probability
--   ``va::Vector``: The variance of the posterior probability
--   ``sol::EPFields``: The internal field status. From this value we can
-restart the sampling from a specific state.
--   ``status::Symbol``: either ``:converged`` or ``:unconverged``.
+The output in res is of type `EPout`: there are several fields:
+-   `μ::Vector`: A parameter linked to the mean of the posterior probability 
+-   `σ::Vector`: A parameter linked to the std  of the posterior probability 
+-   `av::Vector`: The mean posterior probability
+-   `va::Vector`: The variance of the posterior probability
+-   `sol::EPFields`: The internal field status. From this value we can restart the sampling from a specific state.
+-   `status::Symbol`: either ``:converged`` or ``:unconverged``.
 
 Input (required)
 ----
-- `S`: MxN matrix (either sparse or dense) please note that if you input a dense version, the algorithm is slighlty more efficient. Dense matrices can be create from sparse ones with ``Matrix(S)``.
+- `S`: MxN matrix (either sparse or dense) please note that if you input a dense version, the algorithm is slighlty more efficient. Dense matrices can be create from sparse ones with `Matrix(S)`.
 - `b`: a vector of M intakes/uptakes 
 - `lb`: a vector of lengh N of lower bounds.
 - `ub`: a vector of lengh N of upper bounds.
@@ -159,8 +158,8 @@ function eponesweepT0!(epfields::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
     minerr = typemin(av[1])
     errav,errva,errμ,errs = minerr,minerr,minerr,minerr
 
-    #Σw = inv(Diagonal(1.0 ./ bw) + G' * Diagonal( 1.0 ./ by ) * G)
-    fast_similarity_inv!(Σw, bw,  by, G)
+    Σw = inv(Diagonal(1.0 ./ bw) + G' * Diagonal( 1.0 ./ by ) * G)
+    #fast_similarity_inv!(Σw, bw,  by, G)
     mul!(Σy,G*Σw,G')
     mul!(vw,Σw, aw ./ bw - G'*(ay ./ by))
     mul!(vy,G,vw)
@@ -172,7 +171,7 @@ function eponesweepT0!(epfields::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
         errs = max(errs, abs(sw[i]-newsw))
         μw[i] = newμw
         sw[i] = newsw
-#        println("μw[$(i+M)] = ", μw[i]," sw[$(i+M)] = ", sw[i], " Σw = ",Σw[i,i] )
+        # println("μw[$(i+M)] = ", μw[i]," sw[$(i+M)] = ", sw[i], " Σw = ",Σw[i,i] )
 
         
         newavw,newvaw = newav(sw[i],μw[i],avw[i],vaw[i],siteflagave[i+M],siteflagvar[i+M],
