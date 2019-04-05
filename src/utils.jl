@@ -137,35 +137,3 @@ function echelonize(X::T,v; eps::Real=1e-10) where T <:DenseArray
     return idxdep, newidx, res, bnew
 
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

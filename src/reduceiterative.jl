@@ -104,4 +104,3 @@ function _reduceproblem(S, b, lb, ub, fixedvar::Array{Tuple{Int64,Float64},1})
     end
     SimpleNet(nS[idx,:], nb1, nlb, nub, idxnonfix, idx)
 end
-

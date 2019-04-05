@@ -73,7 +73,7 @@ function prepareinput(K,Y,lb,ub,beta,verbose,solution,expval,T)
 
     M,N = size(K)
     M < N || @warn("M = $M ≥ N = $N")
-    sum(ub .< lb) == 0 || error("lower bound fluxes > upper bound fluxes. Consider swapping lower and upper bounds") 
+    all(ub .< lb) || error("lower bound fluxes > upper bound fluxes. Consider swapping lower and upper bounds") 
 
     verbose && println(stderr, "Analyzing a $M x $N stoichiometric matrix.")
     updatefunction = if beta == Inf
