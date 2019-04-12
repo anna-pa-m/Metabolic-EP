@@ -55,19 +55,19 @@ function metabolicEP(K::AbstractArray{T,2}, Y::Array{T,1}, lb::Array{T,1}, ub::A
 
     llb = copy(lb) # making  a local copy to rescale
     lub = copy(ub)
-    updatefunction,scalefact,epfield = prepareinput(K,Y,llb,lub,beta,verbose,solution,expval,T)
-
+    updatealg,scalefact,epfield = prepareinput(K,Y,llb,lub,beta,verbose,solution,expval,T)
     scaleepfield!(epfield,lub,llb,Y,1.0/scalefact) # rescaling fields in [0,1]
-
-
     epalg = EPAlg(beta, minvar, maxvar, epsconv, damp, maxiter,verbose)
-    updatealg = beta < Inf ? eponesweep! : eponesweepT0!
     epmat = beta < Inf ? EPMat(K,Y,llb, lub, beta) : EPMatT0(K,Y,llb, lub)
-    returnstatus=epconverge!(epfield,epmat,epalg, updatealg)
-    scaleepfield!(epfield,lub,llb,Y,scalefact)
-    return  EPout(epfield.μ,epfield.s, epfield.av, epfield.va, epfield, returnstatus)
+    returnstatus = epconverge!(epfield,epmat,epalg, updatealg)
+    scaleepfield!(epfield,lub,llb,Y,scalefact,beta)
+    if beta < Inf
+        return  EPout(epfield.μ,epfield.s, epfield.av, epfield.va, epfield, returnstatus)
+    else
+        idx = epmat.idx
+        return  EPout(epfield.μ[idx],epfield.s[idx], epfield.av[idx], epfield.va[idx], epfield, returnstatus)
+    end
 end
-
 
 function prepareinput(K,Y,lb,ub,beta,verbose,solution,expval,T)
 
@@ -76,16 +76,16 @@ function prepareinput(K,Y,lb,ub,beta,verbose,solution,expval,T)
     all(ub .< lb) || error("lower bound fluxes > upper bound fluxes. Consider swapping lower and upper bounds") 
 
     verbose && println(stderr, "Analyzing a $M x $N stoichiometric matrix.")
+
+    scalefact = T(0)
+    
     updatefunction = if beta == Inf
-       if isstandardform(K)
-           eponesweepT0!
-       else
-           error("for T = 0 algorithm, S should be [I | M] where I is the Identity and M any matrix")
-       end
+        eponesweepT0!
+    else
+        eponesweep!
     end
 
     scalefact = max(maximum(abs.(lb)), maximum(abs.(ub)))
-
     if solution === nothing
         epfield = EPFields(N,expval,scalefact,T)
     else
@@ -119,15 +119,21 @@ function epconverge!(epfield::EPFields,epmat::M,epalg::EPAlg, eponesweep!::T) wh
     if verbose
         print(stderr, "\n")
         flush(stderr)
-    end
-
+    end    
     return returnstatus
 end
 
 
 
-function scaleepfield!(X,lb,ub,Y,scalefact)
-    @extract X : μ s av va
+function scaleepfield!(epfield,ub,Y,scalefact,beta)
+
+    if beta < Inf
+        @extract epfield : μ s av va
+        idx = [i for i ∈ 1:length(av) ]        
+    else
+        @extract epfield : μ s av va idx
+    end
+
     rmul!(μ, scalefact)
     rmul!(s, scalefact^2)
     rmul!(av, scalefact)
