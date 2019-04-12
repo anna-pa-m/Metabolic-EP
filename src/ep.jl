@@ -55,12 +55,14 @@ function metabolicEP(K::AbstractArray{T,2}, Y::Array{T,1}, lb::Array{T,1}, ub::A
 
     llb = copy(lb) # making  a local copy to rescale
     lub = copy(ub)
-    updatealg,scalefact,epfield = prepareinput(K,Y,llb,lub,beta,verbose,solution,expval,T)
+    updatealg,scalefact,epfield = prepareinput(K,Y,llb,lub,beta,verbose,solution,expval)
+    println("1 ", typeof(scalefact)," ",scalefact)
     scaleepfield!(epfield,lub,llb,Y,1.0/scalefact) # rescaling fields in [0,1]
+
     epalg = EPAlg(beta, minvar, maxvar, epsconv, damp, maxiter,verbose)
     epmat = beta < Inf ? EPMat(K,Y,llb, lub, beta) : EPMatT0(K,Y,llb, lub)
     returnstatus = epconverge!(epfield,epmat,epalg, updatealg)
-    scaleepfield!(epfield,lub,llb,Y,scalefact,beta)
+    scaleepfield!(epfield,lub,llb,Y,scalefact)
     if beta < Inf
         return  EPout(epfield.μ,epfield.s, epfield.av, epfield.va, epfield, returnstatus)
     else
@@ -69,15 +71,15 @@ function metabolicEP(K::AbstractArray{T,2}, Y::Array{T,1}, lb::Array{T,1}, ub::A
     end
 end
 
-function prepareinput(K,Y,lb,ub,beta,verbose,solution,expval,T)
+function prepareinput(K,Y,lb,ub,beta,verbose,solution,expval)
 
     M,N = size(K)
     M < N || @warn("M = $M ≥ N = $N")
-    all(ub .< lb) || error("lower bound fluxes > upper bound fluxes. Consider swapping lower and upper bounds") 
+    all(lb .< ub) || error("lower bound fluxes > upper bound fluxes. Consider swapping lower and upper bounds") 
 
     verbose && println(stderr, "Analyzing a $M x $N stoichiometric matrix.")
 
-    scalefact = T(0)
+    scalefact = zero(eltype(K))
     
     updatefunction = if beta == Inf
         eponesweepT0!
@@ -87,7 +89,7 @@ function prepareinput(K,Y,lb,ub,beta,verbose,solution,expval,T)
 
     scalefact = max(maximum(abs.(lb)), maximum(abs.(ub)))
     if solution === nothing
-        epfield = EPFields(N,expval,scalefact,T)
+        epfield = EPFields(N,expval,scalefact)
     else
         epfield = deepcopy(solution.sol) # preserve the original solution!
     end
@@ -125,15 +127,10 @@ end
 
 
 
-function scaleepfield!(epfield,ub,Y,scalefact,beta)
+function scaleepfield!(epfield,lb, ub,Y,scalefact)
 
-    if beta < Inf
-        @extract epfield : μ s av va
-        idx = [i for i ∈ 1:length(av) ]        
-    else
-        @extract epfield : μ s av va idx
-    end
-
+    @extract epfield : μ s av va 
+    
     rmul!(μ, scalefact)
     rmul!(s, scalefact^2)
     rmul!(av, scalefact)
@@ -148,8 +145,11 @@ function eponesweepT0!(epfields::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
     @extract epalg : beta minvar maxvar epsconv damp
     @extract epmatT0 : Σy Σw G lb ub vy vw Y 
 
+    
     M = size(G,1)
     N = length(av)
+
+    println("M = $M N = $N")
     
     idxy = 1:M
     idxw = M+1:N

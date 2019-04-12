@@ -9,12 +9,13 @@ struct EPFields{T<:AbstractFloat}
     siteflagvar::BitArray{1}
 end
 
-function EPFields(N::Int,expval,scalefact,T)
+function EPFields(N::Int,expval,scalefact)
     
     siteflagvar = trues(N)
     siteflagave = trues(N)
     
     expave, expvar = parseexpval!(expval,siteflagave,siteflagvar,scalefact)
+    T = typeof(scalefact)
     av = zeros(T,N)
     var = zeros(T,N)
 
@@ -88,8 +89,8 @@ function EPMatT0(K::AbstractArray{T,2}, Y::Vector{T}, lb::Vector{T}, ub::Vector{
     M <= N || error("M=$M cannot be larger than N=$N")
     _,ci,EK,EY = echelonize(Matrix(K),Y)
     Mech,Nech = size(EK)
-    
-    return EPMatT0(zeros(T,Mech,Mech), zeros(T,Nech-Mech,Nech-Mech), EK, lb[ci],ub[ci],zeros(T,Mech),zeros(T,Nech-Mech),EY,ci)
+    length(EY) == Mech || error("vector size incompatible with matrix") 
+    return EPMatT0(zeros(T,Mech,Mech), zeros(T,Nech-Mech,Nech-Mech), copy(EK[1:Mech,Mech+1:Nech]), lb[ci],ub[ci],zeros(T,Mech),zeros(T,Nech-Mech),EY,ci)
 end
 
 struct EPAlg{T<:AbstractFloat}
