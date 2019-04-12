@@ -66,7 +66,7 @@ function metabolicEP(K::AbstractArray{T,2}, Y::Array{T,1}, lb::Array{T,1}, ub::A
     if beta < Inf
         return  EPout(epfield.μ,epfield.s, epfield.av, epfield.va, epfield, returnstatus)
     else
-        idx = epmat.idx
+        idx = epmat.idx        
         return  EPout(epfield.μ[idx],epfield.s[idx], epfield.av[idx], epfield.va[idx], epfield, returnstatus)
     end
 end

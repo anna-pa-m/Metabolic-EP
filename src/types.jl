@@ -90,7 +90,7 @@ function EPMatT0(K::AbstractArray{T,2}, Y::Vector{T}, lb::Vector{T}, ub::Vector{
     _,ci,EK,EY = echelonize(Matrix(K),Y)
     Mech,Nech = size(EK)
     length(EY) == Mech || error("vector size incompatible with matrix") 
-    return EPMatT0(zeros(T,Mech,Mech), zeros(T,Nech-Mech,Nech-Mech), copy(EK[1:Mech,Mech+1:Nech]), lb[ci],ub[ci],zeros(T,Mech),zeros(T,Nech-Mech),EY,ci)
+    return EPMatT0(zeros(T,Mech,Mech), zeros(T,Nech-Mech,Nech-Mech), copy(EK[1:Mech,Mech+1:Nech]), lb[ci],ub[ci],zeros(T,Mech),zeros(T,Nech-Mech),EY,sortperm(ci)) # soerperm ci is the inverse permutation that sends me back to the original permutation
 end
 
 struct EPAlg{T<:AbstractFloat}
