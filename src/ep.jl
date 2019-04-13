@@ -56,7 +56,7 @@ function metabolicEP(K::AbstractArray{T,2}, Y::Array{T,1}, lb::Array{T,1}, ub::A
     llb = copy(lb) # making  a local copy to rescale
     lub = copy(ub)
     updatealg,scalefact,epfield = prepareinput(K,Y,llb,lub,beta,verbose,solution,expval)
-    println("1 ", typeof(scalefact)," ",scalefact)
+
     scaleepfield!(epfield,lub,llb,Y,1.0/scalefact) # rescaling fields in [0,1]
 
     epalg = EPAlg(beta, minvar, maxvar, epsconv, damp, maxiter,verbose)
@@ -66,8 +66,8 @@ function metabolicEP(K::AbstractArray{T,2}, Y::Array{T,1}, lb::Array{T,1}, ub::A
     if beta < Inf
         return  EPout(epfield.μ,epfield.s, epfield.av, epfield.va, epfield, returnstatus)
     else
-        idx = epmat.idx        
-        return  EPout(epfield.μ[idx],epfield.s[idx], epfield.av[idx], epfield.va[idx], epfield, returnstatus)
+        idx = epmat.idx
+        return  EPout(epfield.μ[idx],epfield.s[idx],epfield.av[idx],epfield.va[idx], epfield, returnstatus)
     end
 end
 
@@ -77,7 +77,7 @@ function prepareinput(K,Y,lb,ub,beta,verbose,solution,expval)
     M < N || @warn("M = $M ≥ N = $N")
     all(lb .<= ub) || error("lower bound fluxes > upper bound fluxes. Consider swapping lower and upper bounds") 
 
-    verbose && println(stderr, "Analyzing a $M x $N stoichiometric matrix.")
+    verbose && println(stderr, "Analyzing a $M × $N stoichiometric matrix.")
 
     scalefact = zero(eltype(K))
     
@@ -128,13 +128,11 @@ end
 
 
 function scaleepfield!(epfield,lb, ub,Y,scalefact)
-
     @extract epfield : μ s av va 
-    
-    rmul!(μ, scalefact)
-    rmul!(s, scalefact^2)
-    rmul!(av, scalefact)
-    rmul!(va, scalefact^2)
+    rmul!(μ,scalefact)
+    rmul!(s,scalefact^2)
+    rmul!(av,scalefact)
+    rmul!(va,scalefact^2)
     rmul!(ub,scalefact)
     rmul!(lb,scalefact)
     rmul!(Y,scalefact)
@@ -149,7 +147,7 @@ function eponesweepT0!(epfields::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
     M = size(G,1)
     N = length(av)
 
-    println("M = $M N = $N")
+
     
     idxy = 1:M
     idxw = M+1:N

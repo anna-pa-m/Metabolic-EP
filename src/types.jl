@@ -36,18 +36,14 @@ function EPFields(N::Int,expval,scalefact)
              siteflagvar)
 end
 
-
-function EPFields(N::Int,expval::Nothing,scalefact,T)    
-
-    return EPFields(zeros(T,N),
-             zeros(T,N),
-             zeros(T,N),
-             ones(T,N),
-             zeros(T,N),
-             ones(T,N),
-             trues(N),
-             trues(N))                
-end
+EPFields(N::Int,expval::Nothing,scalefact,T)=EPFields(zeros(T,N),
+                                                      zeros(T,N),
+                                                      zeros(T,N),
+                                                      ones(T,N),
+                                                      zeros(T,N),
+                                                      ones(T,N),
+                                                      trues(N),
+                                                      trues(N))
 
 abstract type AbstractEPMat end
 
