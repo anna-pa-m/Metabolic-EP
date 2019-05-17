@@ -67,7 +67,6 @@ function EPMat(K::AbstractArray{T}, Y::Vector{T}, lb::Vector{T}, ub::Vector{T}, 
     end
 end
 
-
 struct EPMatT0{T<:AbstractFloat} <: AbstractEPMat
     Σy::Matrix{T}
     Σw::Matrix{T}
@@ -82,7 +81,7 @@ end
 
 function EPMatT0(K::AbstractArray{T,2}, Y::Vector{T}, lb::Vector{T}, ub::Vector{T}) where T <: Real
     M,N = size(K)    
-    M <= N || error("M=$M cannot be larger than N=$N")
+    M <= N || @warn("numeber of rows M=$M larger than number of cols N=$N")
     _,ci,EK,EY = echelonize(Matrix(K),Y)
     Mech,Nech = size(EK)
     length(EY) == Mech || error("vector size incompatible with matrix") 
