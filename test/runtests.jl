@@ -1,8 +1,6 @@
 using MetabolicEP,Test
 
-tests = ["testep"]
-
-printstyled("Running tests:\n", color=:blue)
+tests = ["testep","testio"]
 
 using Random
 Random.seed!(345679)
