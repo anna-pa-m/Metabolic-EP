@@ -17,6 +17,6 @@ res = map(tests) do t
 end
 # print method ambiguities
 println("Potentially stale exports: ")
-ambiguities=Test.detect_ambiguities(PottsGauge)
+ambiguities=Test.detect_ambiguities(MetabolicEP)
 isempty(ambiguities) || display(ambiguities)
 println()
