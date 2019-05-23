@@ -19,10 +19,16 @@ function ReadMatrix(filename::String)
     S = X[key1]["S"]
     M,N = size(S)
     b = vec(X[key1]["b"])
-    c = vec(X[key1]["c"]) 
+
     lb = vec(X[key1]["lb"])
     ub = vec(X[key1]["ub"])
-    if haskey(X[key1],"genes") 
+    if haskey(X[key1],"c")
+        c = vec(X[key1]["c"])
+    else
+        c = Float64[]
+    end
+
+    if haskey(X[key1],"genes")
         genes = String[ string(X[key1]["genes"][i]) for i=1:length(X[key1]["genes"])]
     else
         genes = ["NA"]
@@ -37,9 +43,9 @@ function ReadMatrix(filename::String)
     else
         grRules = ["NA"]
     end
-    if haskey(X[key1],"mets")        
-        mets = String[ string(X[key1]["mets"][i])  for i=1:length(X[key1]["mets"]) ]        
-        if length(unique(mets)) != M 
+    if haskey(X[key1],"mets")
+        mets = String[ string(X[key1]["mets"][i])  for i=1:length(X[key1]["mets"]) ]
+        if length(unique(mets)) != M
             mets = String["met$i" for i=1:M]
             warn("not unique list if metabolite names")
         end
@@ -49,7 +55,7 @@ function ReadMatrix(filename::String)
 
     if haskey(X[key1],"rxns")
         rxns = String[ string(X[key1]["rxns"][i])  for i=1:length(X[key1]["rxns"])]
-        if length(unique(rxns)) != N 
+        if length(unique(rxns)) != N
             rxns = String["rxn$i" for i=1:N]
             warn("not unique list of reaction names")
         end
@@ -89,7 +95,7 @@ end
 
 # function idxlicols(X; tol::Float64=1e-10)
 #     sum(abs2,X) == 0 && (return(Array{Int,1}(),Array{Int,2}()))
-#     Q,R,E = qr(X,Val{true})  
+#     Q,R,E = qr(X,Val{true})
 #     diagr = abs.(diag(R))
 #     r = find(diagr .>= tol*diagr[1])[end]
 #     idx = sort(E[1:r])
@@ -121,7 +127,7 @@ function echelonize(X::T,v; eps::Real=1e-10) where T <:DenseArray
     idxind = idxlicols(X)
     idxdep = setdiff(1:N,idxind)
     newidx = vcat(idxind,idxdep)
-    Tv = @view X[idxrow,newidx] 
+    Tv = @view X[idxrow,newidx]
     iTv = inv(Tv[1:Mred, 1:Mred])
     res = iTv * Tv
     # trimming zeros
