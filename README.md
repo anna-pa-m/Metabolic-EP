@@ -3,8 +3,6 @@ Expectation Propagation algorithm for metabolic networks
 =======
 # Authors:
 Alfredo Braunstein, Anna Paola Muntoni and Andrea Pagnani
-# Date:
-6th April 2017
 
 
 # Description
