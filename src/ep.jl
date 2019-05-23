@@ -29,7 +29,7 @@ Input (required)
 
 Input (optional arguments).
 ----
-- `beta` (inverse temperature::``Real``): default 10^7
+- `beta` (inverse temperature::``Real``): default 10^7;  the zero temperature algorithm is run setting ``beta=Inf``.
 - `verbose` (``true`` or ``false``): default ``true``
 - `damp` (∈ (0,1) newfield = damp * oldfield + (1-damp)* newfield): default 0.9
 - `epsconv` (convergence criterion): default 1e-6
