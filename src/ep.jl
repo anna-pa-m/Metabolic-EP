@@ -13,8 +13,8 @@ res=metabolicEP(S,b,lb,ub,...)
 
 
 The output in res is of type `EPout`: there are several fields:
--   `μ::Vector`: A parameter linked to the mean of the posterior probability 
--   `σ::Vector`: A parameter linked to the std  of the posterior probability 
+-   `μ::Vector`: A parameter linked to the mean of the posterior probability
+-   `σ::Vector`: A parameter linked to the std  of the posterior probability
 -   `av::Vector`: The mean posterior probability
 -   `va::Vector`: The variance of the posterior probability
 -   `sol::EPFields`: The internal field status. From this value we can restart the sampling from a specific state.
@@ -23,15 +23,15 @@ The output in res is of type `EPout`: there are several fields:
 Input (required)
 ----
 - `S`: MxN matrix (either sparse or dense) please note that if you input a dense version, the algorithm is slighlty more efficient. Dense matrices can be create from sparse ones with `Matrix(S)`.
-- `b`: a vector of M intakes/uptakes 
+- `b`: a vector of M intakes/uptakes
 - `lb`: a vector of lengh N of lower bounds.
 - `ub`: a vector of lengh N of upper bounds.
 
-Input (optional arguments). 
+Input (optional arguments).
 ----
-- `beta` (inverse temperature::``Real``): default 10^7 
+- `beta` (inverse temperature::``Real``): default 10^7
 - `verbose` (``true`` or ``false``): default ``true``
-- `damp` (∈ (0,1) newfield = damp * oldfield + (1-damp)* newfield): default 0.9  
+- `damp` (∈ (0,1) newfield = damp * oldfield + (1-damp)* newfield): default 0.9
 - `epsconv` (convergence criterion): default 1e-6
 - `maxiter` (maximum number of iterations): default 2000
 - `maxvar`  (threshold on maximum variance): default 1e50
@@ -75,12 +75,12 @@ function prepareinput(K,Y,lb,ub,beta,verbose,solution,expval)
 
     M,N = size(K)
     M < N || @warn("M = $M ≥ N = $N")
-    all(lb .<= ub) || error("lower bound fluxes > upper bound fluxes. Consider swapping lower and upper bounds") 
+    all(lb .<= ub) || error("lower bound fluxes > upper bound fluxes. Consider swapping lower and upper bounds")
 
     verbose && println(stderr, "Analyzing a $M × $N stoichiometric matrix.")
 
     scalefact = zero(eltype(K))
-    
+
     updatefunction = if beta == Inf
         eponesweepT0!
     else
@@ -101,10 +101,10 @@ function epconverge!(epfield::EPFields,epmat::M,epalg::EPAlg, eponesweep!::T) wh
 
 
     @extract epalg : maxiter verbose epsconv
-    
+
     returnstatus = :unconverged
     iter = 0
-    print(stderr, "Converging with β=$(epalg.beta) maxth=$(epsconv) maxiter=$(maxiter):\n")
+    verbose && print(stderr, "Converging with β=$(epalg.beta) maxth=$(epsconv) maxiter=$(maxiter):\n")
     while iter < maxiter
         iter += 1
         (errav,errvar,errμ, errs) = eponesweep!(epfield,epalg, epmat)
@@ -112,7 +112,7 @@ function epconverge!(epfield::EPFields,epmat::M,epalg::EPAlg, eponesweep!::T) wh
             @printf(stderr, "it = %d ɛav = %.2e ɛvar = %.2e ɛμ = %.2e ɛs = %.2e                 \r", iter, errav, errvar, errμ, errs)
             flush(stderr)
         end
-        
+
         if max(errav, errvar) < epsconv
             returnstatus = :converged
             break
@@ -121,14 +121,14 @@ function epconverge!(epfield::EPFields,epmat::M,epalg::EPAlg, eponesweep!::T) wh
     if verbose
         print(stderr, "\n")
         flush(stderr)
-    end    
+    end
     return returnstatus
 end
 
 
 
 function scaleepfield!(epfield,lb, ub,Y,scalefact)
-    @extract epfield : μ s av va 
+    @extract epfield : μ s av va
     rmul!(μ,scalefact)
     rmul!(s,scalefact^2)
     rmul!(av,scalefact)
@@ -141,14 +141,14 @@ end
 function eponesweepT0!(epfields::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
     @extract epfields : av va a b μ s siteflagave siteflagvar
     @extract epalg : beta minvar maxvar epsconv damp
-    @extract epmatT0 : Σy Σw G lb ub vy vw Y 
+    @extract epmatT0 : Σy Σw G lb ub vy vw Y
 
-    
+
     M = size(G,1)
     N = length(av)
 
 
-    
+
     idxy = 1:M
     idxw = M+1:N
 
@@ -177,39 +177,39 @@ function eponesweepT0!(epfields::EPFields, epalg::EPAlg, epmatT0::EPMatT0)
         sw[i] = newsw
         # println("μw[$(i+M)] = ", μw[i]," sw[$(i+M)] = ", sw[i], " Σw = ",Σw[i,i] )
 
-        
+
         newavw,newvaw = newav(sw[i],μw[i],avw[i],vaw[i],siteflagave[i+M],siteflagvar[i+M],
                               lb[i+M],ub[i+M],minvar,maxvar)
         errav = max(errav,abs(avw[i]-newavw))
         errva = max(errva,abs(vaw[i]-newvaw))
         avw[i] = newavw
-        vaw[i] = newvaw 
+        vaw[i] = newvaw
 
         newaw,newbw = matchmom(μw[i],sw[i],avw[i],vaw[i],minvar,maxvar)
         aw[i] = damp * aw[i] + (1.0-damp)*newaw
         bw[i] = damp * bw[i] + (1.0-damp)*newbw
     end
-    
+
     for i in eachindex(μy)   # loop  1:M
-        
+
         newμy,newsy = newμs(Σy[i,i],ay[i],by[i], vy[i],lb[i],ub[i],minvar,maxvar)
         errμ = max(errμ, abs(μy[i]-newμy))
         errs = max(errs, abs(sy[i]-newsy))
         μy[i] = newμy
         sy[i] = newsy
 #        println("μy[$i] = ", μy[i]," sy[$i] = ", sy[i], " Σ = ", Σy[i,i], " (",lb[i],":",ub[i],")"," ay[$i] = ",ay[i], " by[$i] = ", by[i])
-        
+
         newavy,newvay = newav(sy[i],μy[i],avy[i],vay[i],siteflagave[i],siteflagvar[i],
                               lb[i],ub[i],minvar,maxvar)
         errav = max(errav,abs(avy[i]-newavy))
         errva = max(errva,abs(vay[i]-newvay))
         avy[i] = newavy
-        vay[i] = newvay 
-        
+        vay[i] = newvay
+
         neway,newby = matchmom(μy[i],sy[i],avy[i],vay[i],minvar,maxvar)
         ay[i] = damp * ay[i] + (1.0-damp)*neway
         by[i] = damp * by[i] + (1.0-damp)*newby
-    end    
+    end
     return errav, errva, errμ, errs
 end
 
@@ -225,8 +225,8 @@ function newav(s,μ,av,va,siteflagave,siteflagvar,lb,ub, minvar, maxvar)
     xinf = (lb - μ) / sqrts
     xsup = (ub - μ) / sqrts
     scra1,scra12 = compute_mom5d(xinf,xsup)
-    avnew  = siteflagave ? μ + scra1*sqrts : av 
-    varnew = siteflagvar ? max(minvar,s*(1.0+scra12)) : va    
+    avnew  = siteflagave ? μ + scra1*sqrts : av
+    varnew = siteflagvar ? max(minvar,s*(1.0+scra12)) : va
     isnan(avnew) || isnan(varnew) && println("avnew = $avnew varnew = $varnew")
     return avnew, varnew
 end
@@ -235,9 +235,9 @@ function newμs(Σ,a,b,v,lb,ub,minvar,maxvar)
 
     Σ == 0 && (Σ = minvar)
     #lΣ = clamp(Σ,minvar,maxvar)
-    #s = Σ > 0 ? clamp(inv(1.0/Σ - 1.0/b),minvar,maxvar) : minvar   
-    s = clamp(inv(1.0/Σ - 1.0/b),minvar,maxvar)   
-    μ = if Σ != b 
+    #s = Σ > 0 ? clamp(inv(1.0/Σ - 1.0/b),minvar,maxvar) : minvar
+    s = clamp(inv(1.0/Σ - 1.0/b),minvar,maxvar)
+    μ = if Σ != b
         s * (v/Σ - a/b)
     else
         #@warn("I'm here: ub = ",ub," lb = ",lb, " Σ = ", Σ)
@@ -255,7 +255,7 @@ let DDwXDy = Dict{Int,Matrix}()
         @inbounds for i in eachindex(Dw)
             DwXDy[i,i] = 1.0 / Dw[i]
         end
-        BLAS.syrk!('U','T',1.0, Diagonal((1.0/sqrt.(Dy)))*G,1.0,DwXDy)        
+        BLAS.syrk!('U','T',1.0, Diagonal((1.0/sqrt.(Dy)))*G,1.0,DwXDy)
         inplaceinverse!(dest, DwXDy)
         return nothing
     end
@@ -266,7 +266,7 @@ function eponesweep!(X::EPFields,epalg::EPAlg, epmat::EPMat)
     @extract X : av va a b μ s siteflagave siteflagvar
     @extract epalg : beta minvar maxvar epsconv damp
     @extract epmat : KK KKPD invKKPD lb ub KY v
-    
+
     for i in eachindex(b)
         KKPD[i,i] = KK[i,i] + 1.0/b[i]
     end
@@ -276,7 +276,7 @@ function eponesweep!(X::EPFields,epalg::EPAlg, epmat::EPMat)
     errav,errva,errμ,errs = minerr,minerr,minerr,minerr
 
     mul!(v,invKKPD, (KY + a./b))
-    
+
     for i in eachindex(av)
         newμ,news = newμs(invKKPD[i,i],a[i],b[i],v[i],lb[i],ub[i],minvar, maxvar)
         errμ = max(errμ, abs(μ[i]-newμ))
@@ -290,7 +290,7 @@ function eponesweep!(X::EPFields,epalg::EPAlg, epmat::EPMat)
         errva = max(errva,abs(va[i]-newva))
         av[i] = newave
         va[i] = newva
-        
+
         newa,newb = matchmom(μ[i],s[i],av[i],va[i],minvar,maxvar)
         a[i] = damp * a[i] + (1.0-damp)*newa
         b[i] = damp * b[i] + (1.0-damp)*newb
@@ -300,7 +300,7 @@ end
 
 
 function compute_mom5d(xinf, xsup)
-  
+
     minval = min(abs(xinf), abs(xsup))
     sgn = sign(xinf*xsup)
 
@@ -313,12 +313,12 @@ function compute_mom5d(xinf, xsup)
         Φsup   = Φ(xsup)
         ϕinf   = ϕ(xinf)
         Φinf   = Φ(xinf)
-        scra1 = (ϕinf - ϕsup)/(Φsup - Φinf)             
+        scra1 = (ϕinf - ϕsup)/(Φsup - Φinf)
         scra2 = (xinf * ϕinf - xsup*ϕsup)/(Φsup -Φinf)
         scra12 = scra2 - scra1^2
         return scra1, scra12
     else
-        delta2 = (xsup^2 - xinf^2)*0.5 
+        delta2 = (xsup^2 - xinf^2)*0.5
         if delta2 > 40.
             scra1 = xinf^5/(3 - xinf^2 + xinf^4)
             scra2 = xinf^6/(3 - xinf^2 + xinf^4)
@@ -326,7 +326,7 @@ function compute_mom5d(xinf, xsup)
             scra1 = (xinf*xsup)^5 * (1. - exp(delta2)) / (-exp(delta2)*(3.0-xinf^2 + xinf^4)*xsup^5 + xinf^5*(3-xsup^2 + xsup^4))
             scra2 = (xinf*xsup)^5 * (xsup - xinf*exp(delta2)) / (-exp(delta2)*(3.0-xinf^2 + xinf^4)*xsup^5 + xinf^5*(3-xsup^2 + xsup^4))
         end
-        scra12 = scra2 - scra1^2        
+        scra12 = scra2 - scra1^2
         isnan(scra1) || isnan(scra2) || isnan(scra12) && println("scra1 = $scra1 scra2 = $scra2")
         !isfinite(scra1) ||  !isfinite(scra2) && println("scra1 = $scra1 scra2 = $scra2")
         return scra1, scra12
@@ -355,7 +355,7 @@ function _parseexpval!(expval::Tuple,siteflagave::BitArray{1},siteflagvar::BitAr
     expsite = expval[3]
     1<= expsite <= N || error("expsite = $expsite not ∈ 1,...,$N")
     expave = Dict{Int,Float64}()
-    expvar = Dict{Int,Float64}()    
+    expvar = Dict{Int,Float64}()
 
     if expval[1] != nothing
         siteflagave[expsite] = false
@@ -370,7 +370,7 @@ end
 
 function _parseexpval!(expval::Vector,siteflagave::BitArray{1},siteflagvar::BitArray{1})
 
-    N = length(siteflagave)    
+    N = length(siteflagave)
     expave = Dict{Int,Float64}()
     expvar = Dict{Int,Float64}()
     for i in eachindex(expval)
