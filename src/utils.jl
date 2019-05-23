@@ -25,7 +25,7 @@ function ReadMatrix(filename::String)
     if haskey(X[key1],"c")
         c = vec(X[key1]["c"])
     else
-        c = Float64[]
+        c = fill(0.0,N)
     end
 
     if haskey(X[key1],"genes")
