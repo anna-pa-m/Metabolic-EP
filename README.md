@@ -1,6 +1,11 @@
 # Metabolic-EP
 Expectation Propagation algorithm for metabolic networks
 =======
+| **Documentation**                       | **Build Status**                                                                                | **Coverage** |
+|:---------------------------------------:|:-----------------------------------------------------------------------------------------------:|:------------:|
+| [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://anna-pa-m.github.io/Metabolic-EP/dev) | [![Build Status](https://travis-ci.com/anna-pa-m/Metabolic-EP.svg?branch=master)](https://travis-ci.com/anna-pa-m/Metabilic-EP) [![Build status](https://ci.appveyor.com/api/projects/status/ug0kr4hunm5wn163?svg=true)](https://ci.appveyor.com/project/anna-pa-m/metabolic-ep) | [![codecov](https://codecov.io/gh/anna-pa-m/Metaboliv-EP/branch/master/graph/badge.svg)](https://codecov.io/gh/anna-pa-m/Metabolic-EP) |
+
+
 # Authors:
 Alfredo Braunstein, Anna Paola Muntoni and Andrea Pagnani
 
