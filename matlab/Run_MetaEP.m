@@ -10,7 +10,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%	
 
 
-load('test/ecoli_core_model.mat');
+load('../test/ecoli_core_model.mat');
 pmodel = pre_processing(model);
 Beta=1e10;
 damping=0.9;
@@ -41,7 +41,7 @@ plot_fluxmarginal(-1e3, 1e3, muT0(idx_bm), sT0(idx_bm), pmodel.lb(idx_bm),pmodel
 
 clear all
 % uncontrained run
-load('Ec_iJR904.mat')
+load('../data/Ec_iJR904.mat')
 index_glc = strmatch('D Glucose exchange', Ec_iJR904.rxnNames);
 Ec_iJR904.lb(index_glc) = -43;
 model = pre_processing(Ec_iJR904);
