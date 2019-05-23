@@ -68,7 +68,7 @@ Installing the package
 Otherwise, if you do not want to use the package manager, from a local copy of  the directory ``src`` in this repository, you can
 ``julia> include("dirtosource/src/MetabolicEP.jl"); using MetabolicEP``
 
-It works with version 0.5, and 0.4 (with some warnings).
+It works with version 0.5, 0.6 (no longer supported), and 1.0.
 
 Typical usage is
 
