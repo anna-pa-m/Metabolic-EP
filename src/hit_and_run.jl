@@ -1,4 +1,4 @@
-function sample(S, b, lb, ub; niter=10^6, nsamples = 10000)
+function hrsample(S, b, lb, ub; niter=10^6, nsamples = 10000)
     x = warmup(S,b,lb,ub);
     m,n = size(S)
     # preprocessing: find base
@@ -16,8 +16,6 @@ function sample(S, b, lb, ub; niter=10^6, nsamples = 10000)
         u = minimum(max((lb[i]-x[i])/dx[i], (ub[i]-x[i])/dx[i]) for i=1:n if dx[i] != 0)
         # find a random point in the intersection
         t = l+(u-l)*rand()
-
-
         x .+= t * dx
         if mod(it, floor(niter/nsamples)) == 0
             h[hpos,:] .= x[:]

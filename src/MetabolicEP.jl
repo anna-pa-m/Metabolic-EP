@@ -4,7 +4,7 @@ using MAT, ExtractMacro, SpecialFunctions, SparseArrays
 using SparseArrays: SparseMatrixCSC
 using Printf: @printf
 using Clp, MathProgBase
-
+using .HitAndRun # internal module
 
 VERSION >= v"0.6.0-rc1" && using SpecialFunctions
 
@@ -19,4 +19,3 @@ include("utils.jl")
 # include("reduceiterative.jl")
 
 end # end module
-
