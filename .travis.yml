@@ -16,4 +16,4 @@ after_success:
   - julia -e 'using Pkg, MetabolicEP; Pkg.add("Coverage"); using Coverage; get(ENV,"TRAVIS_OS_NAME","")=="linux" && get(ENV,"TRAVIS_JULIA_VERSION","")=="0.7" && Codecov.submit(Codecov.process_folder())'
 branches:
   only:
-    - v1.0
+    - master
