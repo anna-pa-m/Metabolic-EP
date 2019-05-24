@@ -4,6 +4,8 @@ using MAT, ExtractMacro, SpecialFunctions, SparseArrays
 using SparseArrays: SparseMatrixCSC
 using Printf: @printf
 using Clp, MathProgBase
+
+include("HitAndRun.jl")
 using .HitAndRun # internal module
 
 VERSION >= v"0.6.0-rc1" && using SpecialFunctions
