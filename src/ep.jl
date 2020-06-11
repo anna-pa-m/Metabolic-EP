@@ -55,6 +55,7 @@ function metabolicEP(K::AbstractArray{T,2}, Y::Array{T,1}, lb::Array{T,1}, ub::A
 
     llb = copy(lb) # making  a local copy to rescale
     lub = copy(ub)
+    
     updatealg,scalefact,epfield = prepareinput(K,Y,llb,lub,beta,verbose,solution,expval)
 
     scaleepfield!(epfield,lub,llb,Y,1.0/scalefact) # rescaling fields in [0,1]
@@ -79,22 +80,13 @@ function prepareinput(K,Y,lb,ub,beta,verbose,solution,expval)
 
     verbose && println(stderr, "Analyzing a $M × $N stoichiometric matrix.")
 
-    scalefact = zero(eltype(K))
+    updatefunction = beta == Inf ? eponesweepT0! : eponesweep!
 
-    updatefunction = if beta == Inf
-        eponesweepT0!
-    else
-        eponesweep!
-    end
-
-    scalefact = max(maximum(abs.(lb)), maximum(abs.(ub)))
-    if solution === nothing
-        epfield = EPFields(N,expval,scalefact)
-    else
+    epfield = solution === nothing ?
+        epfield = EPFields(N, expval, eltype(lb)) :
         epfield = deepcopy(solution.sol) # preserve the original solution!
-    end
 
-    return updatefunction,scalefact,epfield
+    return updatefunction, scalefact, epfield
 end
 
 function epconverge!(epfield::EPFields,epmat::M,epalg::EPAlg, eponesweep!::T) where {T<:Function,M<:AbstractEPMat}
@@ -334,36 +326,26 @@ function compute_mom5d(xinf, xsup)
 end
 
 
-function parseexpval!(expval,siteflagave::BitArray{1}, siteflagvar::BitArray{1},scalefact::Float64)
-
-    expave,expvar=_parseexpval!(expval,siteflagave,siteflagvar)
-
-    for (k,v) in expave
-        expave[k] = v/scalefact
-    end
-
-    for (k,v) in expvar
-        expvar[k] = v/scalefact^2
-    end
-    expave,expvar
+function parseexpval!(expval,siteflagave::BitArray{1}, siteflagvar::BitArray{1})
+    return = _parseexpval!(expval,siteflagave,siteflagvar)
 end
 
-function _parseexpval!(expval::Tuple,siteflagave::BitArray{1},siteflagvar::BitArray{1})
+function _parseexpval!(expval::Tuple, siteflagave::BitArray{1}, siteflagvar::BitArray{1})
 
     N = length(siteflagave)
     length(expval) == 3 || error("We expect a 3-uple here")
-    expsite = expval[3]
+    ave, var, expsite = expval
     1<= expsite <= N || error("expsite = $expsite not ∈ 1,...,$N")
     expave = Dict{Int,Float64}()
     expvar = Dict{Int,Float64}()
 
-    if expval[1] != nothing
+    if ave != nothing
         siteflagave[expsite] = false
-        expave[expsite] = expval[1]
+        expave[expsite] = ave
     end
-    if expval[2] != nothing
+    if var != nothing
         siteflagvar[expsite] = false
-        expvar[expsite] = expval[2]
+        expvar[expsite] = var
     end
     expave,expvar
 end
@@ -373,16 +355,15 @@ function _parseexpval!(expval::Vector,siteflagave::BitArray{1},siteflagvar::BitA
     N = length(siteflagave)
     expave = Dict{Int,Float64}()
     expvar = Dict{Int,Float64}()
-    for i in eachindex(expval)
-        expsite = expval[i][3]
+    for (ave, var, expsite) in expval
         1 <= expsite <= N || error("expsite = $minsite not ∈ 1,...,$N")
-        if expval[i][1] != nothing
+        if ave != nothing
             siteflagave[expsite] = false
-            expave[expsite] = expval[i][1]
+            expave[expsite] = ave
         end
-        if expval[i][2] != nothing
+        if var != nothing
             siteflagvar[expsite] = false
-            expvar[expsite] =  expval[i][2]
+            expvar[expsite] =  var
         end
     end
 
