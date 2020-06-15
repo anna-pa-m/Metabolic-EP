@@ -2,7 +2,7 @@ using Documenter, MetabolicEP
 
 push!(LOAD_PATH, "../src/")
 makedocs(
-    sitename = "",
+    sitename = "MetabolicEP",
     modules = [MetabolicEP],
     doctest = false)
 deploydocs(
