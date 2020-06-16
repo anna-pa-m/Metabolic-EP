@@ -1,14 +1,12 @@
 module MetabolicEP
-#using COBRA, MAT, ExtractMacro
-using MAT, ExtractMacro, SpecialFunctions, SparseArrays
+#using COBRA, MAT
+using MAT, ExtractMacro, SpecialFunctions, SparseArrays, Printf
 using SparseArrays: SparseMatrixCSC
 using Printf: @printf
 using Clp, MathProgBase
 
 include("HitAndRun.jl")
 using .HitAndRun # internal module
-
-VERSION >= v"0.6.0-rc1" && using SpecialFunctions
 
 export metabolicEP, ReadMatrix, MetNet, EPFields, EPout #, standardform, reduceModel, reduceiterative
 export hrsample
