@@ -63,7 +63,10 @@ Julia Version
 
 Installing the package
 
-``julia> Pkg.clone("https://github.com/anna-pa-m/Metabolic-EP/","MetabolicEP.jl")``.
+
+```julia> using Pkg
+   julia> pkg"add https://github.com/anna-pa-m/Metabolic-EP/","MetabolicEP.jl"
+```
 
 Otherwise, if you do not want to use the package manager, from a local copy of  the directory ``src`` in this repository, you can
 ``julia> include("dirtosource/src/MetabolicEP.jl"); using MetabolicEP``
