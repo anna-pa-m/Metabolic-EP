@@ -3,7 +3,7 @@ module MetabolicEP
 using MAT, ExtractMacro, SpecialFunctions, SparseArrays, Printf
 using SparseArrays: SparseMatrixCSC
 using Printf: @printf
-using Clp, MathProgBase
+using JuMP, GLPK
 
 include("HitAndRun.jl")
 using .HitAndRun # internal module

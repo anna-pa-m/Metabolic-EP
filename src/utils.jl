@@ -150,10 +150,10 @@ function preprocess(S,b,lb,ub,rxns)
     ei = zeros(n)
     for i=1:n
         ei[i] = -1.0
-        sol = linprog(ei, S, b, b, lb, ub, ClpSolver())
+        sol = linprog(ei, S, b, fill('=', length(b)), lb, ub, GLPK.Optimizer)
         ub[i] = min(ub[i], sol.sol[i])
         ei[i] = +1.0
-        sol = linprog(ei, S, b, b, lb, ub, ClpSolver())
+        sol = linprog(ei, S, b, fill('=', length(b)), lb, ub, GLPK.Optimizer)
         lb[i] = max(lb[i], sol.sol[i])
         ei[i] = 0.0
     end
@@ -165,4 +165,22 @@ function preprocess(S,b,lb,ub,rxns)
     end
     unblocked = (lb .< ub)
     return S[:,unblocked], b - S*(blocked .* lb), lb[unblocked], ub[unblocked], rxns[unblocked]
+end
+
+# solve linear programming problem
+function linprog(c, S, sense, b, l, u, solver)
+    N = length(c)
+    model = Model(solver)
+    @variable(model, l[i] <= x[i=1:N] <= u[i])
+    @objective(model, Min, c' * x)
+    eq_rows, ge_rows, le_rows = sense .== '=', sense .== '>', sense .== '<'
+    @constraint(model, S[eq_rows, :] * x .== b[eq_rows])
+    @constraint(model, S[ge_rows, :] * x .>= b[ge_rows])
+    @constraint(model, S[le_rows, :] * x .<= b[le_rows])
+    optimize!(model)
+    return (
+        status = termination_status(model),
+        objval = objective_value(model),
+        sol = value.(x)
+    )
 end
