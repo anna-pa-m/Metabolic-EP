@@ -1,7 +1,7 @@
 module HitAndRun
 using LinearAlgebra
 using SparseArrays, JuMP, GLPK
-export hrsample, warmup
+export hrsample
 include("utils.jl")
 
 function hrsample(S, b, lb, ub; niter=10^6, nsamples = 10000)
