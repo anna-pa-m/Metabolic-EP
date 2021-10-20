@@ -1,6 +1,9 @@
 module HitAndRun
-using LinearAlgebra, Clp, MathProgBase
-export hrsample
+using LinearAlgebra
+using SparseArrays, JuMP, GLPK
+export hrsample, warmup
+include("utils.jl")
+
 function hrsample(S, b, lb, ub; niter=10^6, nsamples = 10000)
     x = warmup(S,b,lb,ub);
     m,n = size(S)
@@ -34,10 +37,10 @@ function warmup(S, b, lb, ub)
     ei = zeros(n)
     for i=1:n
         ei[i] = -1.0
-        sol=linprog(ei, S, b, b, lb, ub, ClpSolver())
+        sol=linprog(ei, S, fill('=', length(b)), b, lb, ub, GLPK.Optimizer)
         x0 .+= sol.sol / 2n
         ei[i] = +1.0
-        sol=linprog(ei, S, b, b, lb, ub, ClpSolver())
+        sol=linprog(ei, S, fill('=', length(b)), b, lb, ub, GLPK.Optimizer)
         ei[i] = 0.0
         x0 .+= sol.sol / 2n
     end
