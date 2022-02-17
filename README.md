@@ -3,7 +3,7 @@ Expectation Propagation algorithm for metabolic networks
 =======
 | **Documentation**                       | **Build Status**                                                                                | **Coverage** |
 |:---------------------------------------:|:-----------------------------------------------------------------------------------------------:|:------------:|
-| [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://anna-pa-m.github.io/Metabolic-EP/dev) | [![Build Status](https://travis-ci.com/anna-pa-m/Metabolic-EP.svg?branch=main)](https://anna-pa-m.github.io/Metabolic-EP/actions) | [![codecov](https://codecov.io/gh/anna-pa-m/Metabolic-EP/branch/master/graph/badge.svg)](https://codecov.io/gh/anna-pa-m/Metabolic-EP) |
+| [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://anna-pa-m.github.io/Metabolic-EP/dev) | [![Build Status](https://travis-ci.com/anna-pa-m/Metabolic-EP.svg?branch=main)](https://github.com/anna-pa-m/Metabolic-EP/actions) | [![codecov](https://codecov.io/gh/anna-pa-m/Metabolic-EP/branch/master/graph/badge.svg)](https://codecov.io/gh/anna-pa-m/Metabolic-EP) |
 
 
 # Authors:
