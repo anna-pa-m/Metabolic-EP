@@ -55,14 +55,14 @@ function eponesweepold!(X::EPFields, epalg::EPAlg, epmat::EPMat)
         isnan(avnew) || isnan(varnew) && println("avnew = $avnew varnew = $varnew")
         isnan(a[i]) || isnan(b[i])  && println("a[$i] = ", a[i]," b[$i] = ",b[i])
             
-        new_b = min(maxvar, max(minvar, 1./(1./va[i] - 1./s[i])))
+        new_b = min(maxvar, max(minvar, 1.0/(1.0/va[i] - 1.0/s[i])))
         new_a = av[i] + new_b*(av[i] - μ[i])/s[i]
         a[i] = damp*a[i]  + (1.0 - damp)*new_a
         b[i] = damp*b[i]  + (1.0 - damp)*new_b            
     end
     
     for i in eachindex(D)
-        D[i] = 1./b[i]
+        D[i] = 1.0/b[i]
     end
     
     return (errav,errvar,errμ,errs)
