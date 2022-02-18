@@ -110,8 +110,13 @@ function idxlicols(X; tol::Float64=1e-10)
 #    res = qr(X,Val(true))
 #    return res.p
     sum(abs2,X) == 0 && (return(Array{Int,1}(), Array{Int,2}() ))
-    Q,R,E = qr(X, ColumnNorm())
-    diagr = abs.(diag(R))
+    
+    Q,R,E =  @static if VERSION >= v"1.7.0"
+        qr(X, ColumnNorm())
+    else
+        qr(X,Val(true))
+    end
+        diagr = abs.(diag(R))
     r = findall(diagr .>= tol*diagr[1])[end]
     idx = sort(E[1:r])
     return idx
