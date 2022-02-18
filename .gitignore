@@ -4,3 +4,8 @@
 /docs/build
 /docs/site
 Manifest.toml
+docs/build/
+docs/pdf/build/
+docs/site/
+.vscode
+.DS_Store
